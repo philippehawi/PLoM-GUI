@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=PLoM-GUI
+Exec=python3 -m plom_gui
+Terminal=false
