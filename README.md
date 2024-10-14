@@ -53,7 +53,7 @@ cd PLoM-GUI
 
 This GUI package requires, among others, the [PLoM Python package](https://github.com/philippehawi/PLoM). To install this dependency, run the following command from the root of `PLoM-GUI`.
 ```bash
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ### Install Package
