@@ -75,7 +75,7 @@ To launch the PLoM-GUI application, run the following command from the terminal:
 plom-gui
 ```
 
-NOTE: You might need to add the directory where Python places the installed scripts to your system’s PATH environment variable. During the installation of this package, a warning is usually displayed if this scripts directory is not in PATH, and the full path is printed. An example of the scripts path: 
+NOTE: You might need to add the directory where Python places the installed scripts to your system’s PATH environment variable. During the installation of this package, a warning is usually displayed if this scripts directory is not in PATH, and the full path is printed. An example of the scripts path on Windows: 
 
 ```bash
 C:\Users\<YourUser>\AppData\Roaming\Python\PythonXX\Scripts\
