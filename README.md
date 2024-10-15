@@ -1,5 +1,3 @@
-Here is the content for your `README.md` file:
-
 # PLoM-GUI
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
