@@ -14,6 +14,9 @@ import sys
 import threading
 from scipy.stats import gaussian_kde
 
+HOME_DIR = os.path.expanduser("~")
+PLOM_DIR = os.path.join(HOME_DIR, '.plom')
+ICON_PATH = os.path.join(PLOM_DIR, 'plom.ico' if os.name=='nt' else 'plom.png')
 
 def launch_gui():
     
@@ -548,6 +551,8 @@ def launch_gui():
     root = tk.Tk()
     root.title("PLoM GUI (USC-GM)")
     root.geometry("1600x820")  # Set window size
+    if os.path.isfile(ICON_PATH):
+        root.iconbitmap(ICON_PATH)
     
     # Create a style
     style = ttk.Style()
