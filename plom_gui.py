@@ -7,6 +7,7 @@ from tkinter import Menu, messagebox, filedialog, StringVar
 from tkinter import ttk
 import re
 import numpy as np
+import pandas as pd
 from datetime import datetime
 import os
 from plom import parse_input, initialize, run, save_dict, load_dict
@@ -35,12 +36,26 @@ def launch_gui():
     # Global switch for save on exit
     save_on_exit = False
     
+    def set_info_msg_on_widget_click(event, name="", msg=""):
+        ## get name of widget that was clicked on; every widget has to be bound to this function
+        plom_infoMessage['text'] = msg
+        # print(name)
+    
+    def set_info_msg(msg="", color="black"):
+        plom_infoMessage['text'] = msg
+        plom_infoMessage['foreground'] = color
+    
     def click_event(event):
         x,y = root.winfo_pointerxy()                   # get the mouse position on screen
         widget = root.winfo_containing(x,y)            # identify the widget at this location
+        tab = 0
+        if tab_control.select() == '.!frame.!notebook.!frame':
+            tab = 1
+        elif tab_control.select() == '.!frame.!notebook.!frame2':
+            tab = 2
         # print(widget)
         widget.focus()
-        displayMessage__createjob()
+        # displayMessage__plom_statusMessage()
     
     # Function to handle the close event
     def on_close():
@@ -129,7 +144,7 @@ def launch_gui():
         return datetime.now().strftime("%Y%m%d_%H%M%S")
     
     def clear_log():
-        log_text.delete(1.0, tk.END)
+        plom_log_text.delete(1.0, tk.END)
     
     def reset_gui():
         root.destroy()  # Close the existing root window
@@ -140,15 +155,22 @@ def launch_gui():
     def get_plom_gui_input():
         job_name               = opt_save__plom_job_name.get()
         job_path               = opt_save__plom_job_path.get()
-        diagnostics_criteria   = opt_save__plom_diag_criteria.get()
-        diagnostics_inputType  = opt_save__plom_diag_inputType.get()
-        diagnostics_inputValue = opt_save__plom_diag_inputValue.get()
+        
+        # diagnostics_criteria   = opt_save__plom_diag_criteria.get()
+        # diagnostics_inputType  = opt_save__plom_diag_inputType.get()
+        # diagnostics_inputValue = opt_save__plom_diag_inputValue.get()
+        
         data_path              = opt_save__plom_data_path.get()
-        data_columnsAre        = opt_save__plom_data_columnsAre.get()
+        data_delimiter         = opt_save__plom_data_delimiter.get()
+        data_sheetName         = opt_save__plom_data_sheetName.get()
         data_hasLabels         = opt_save__plom_data_hasLabels.get()
+        data_rowRange          = opt_save__plom_data_rowRange.get()
         data_hasIndices        = opt_save__plom_data_hasIndices.get()
+        data_columnRange       = opt_save__plom_data_columnRange.get()
+        data_columnsAre        = opt_save__plom_data_columnsAre.get()
         data_colIgnore         = opt_save__plom_data_colIgnore.get()
         data_rowIgnore         = opt_save__plom_data_rowIgnore.get()
+        
         scaling_yesNo          = opt_save__plom_scaling_yesNo.get()
         scaling_method         = opt_save__plom_scaling_method.get()
         pca_yesNo              = opt_save__plom_pca_yesNo.get()
@@ -178,9 +200,8 @@ def launch_gui():
         results_dict           = opt_save__plom_results_dict.get()
         results_plots          = opt_save__plom_results_plots.get()
         
-        return [job_name, job_path, diagnostics_criteria, diagnostics_inputType, 
-                diagnostics_inputValue, data_path, data_columnsAre, data_hasLabels, 
-                data_hasIndices, data_colIgnore, data_rowIgnore, scaling_yesNo, 
+        return [job_name, job_path, data_path, data_columnsAre, data_hasLabels, 
+                data_hasIndices, data_sheetName, data_colIgnore, data_rowIgnore, scaling_yesNo, 
                 scaling_method, pca_yesNo, pca_method, pca_criteria, pca_scaleEvecs,
                 dmaps_yesNo, dmaps_epsilon, dmaps_kappa, dmaps_L, dmaps_firstEigvec, 
                 dmaps_dim, projection_yesNo, projection_source, projection_target, 
@@ -215,7 +236,7 @@ def launch_gui():
                 with open(file_path, 'r') as f:
                     [job_name, job_path, diagnostics_criteria, diagnostics_inputType, 
                      diagnostics_inputValue, data_path, data_columnsAre, data_hasLabels, 
-                     data_hasIndices, data_colIgnore, data_rowIgnore, scaling_yesNo, 
+                     data_hasIndices, data_sheetName, data_colIgnore, data_rowIgnore, scaling_yesNo, 
                      scaling_method, pca_yesNo, pca_method, pca_criteria, pca_scaleEvecs,
                      dmaps_yesNo, dmaps_epsilon, dmaps_kappa, dmaps_L, dmaps_firstEigvec, 
                      dmaps_dim, projection_yesNo, projection_source, projection_target, 
@@ -226,13 +247,14 @@ def launch_gui():
             
                     opt_save__plom_job_name.set(job_name)
                     opt_save__plom_job_path.set(job_path)
-                    opt_save__plom_diag_criteria.set(diagnostics_criteria)
-                    opt_save__plom_diag_inputType.set(diagnostics_inputType)
-                    opt_save__plom_diag_inputValue.set(diagnostics_inputValue)
+                    # opt_save__plom_diag_criteria.set(diagnostics_criteria)
+                    # opt_save__plom_diag_inputType.set(diagnostics_inputType)
+                    # opt_save__plom_diag_inputValue.set(diagnostics_inputValue)
                     opt_save__plom_data_path.set(data_path)
                     opt_save__plom_data_columnsAre.set(data_columnsAre)
                     opt_save__plom_data_hasLabels.set(data_hasLabels)
                     opt_save__plom_data_hasIndices.set(data_hasIndices)
+                    opt_save__plom_data_sheetName.set(data_sheetName)
                     opt_save__plom_data_colIgnore.set(data_colIgnore)
                     opt_save__plom_data_rowIgnore.set(data_rowIgnore)
                     opt_save__plom_scaling_yesNo.set(scaling_yesNo)
@@ -268,19 +290,29 @@ def launch_gui():
                 pass
     
     
-    def load_training(data_path, data_columnsAre, data_hasLabels, data_hasIndices, 
-                      data_colIgnore, data_rowIgnore):
+    def load_training_data(
+            data_path, data_columnsAre='features', data_hasLabels=False, data_hasIndices=False, 
+            data_sheetName=None, data_colIgnore=[], data_rowIgnore=[]):
+        
+        file_extension = data_path.split('.')[-1]
         
         if data_hasLabels:
             skiprows = 1
+            excel_header = 0
         else:
             skiprows = 0
-            
-        if data_path.endswith(".txt"):
-            data = np.loadtxt(data_path, skiprows=skiprows)
-        elif data_path.endswith(".npy"):
-            data = np.load(data_path)
+            excel_header = None
         
+        if file_extension in ["xls", "xlsx", "xlsm", "xlsb"]:
+            data = pd.read_excel(data_path, sheet_name=data_sheetName, usecols='B:N', skiprows=skiprows)
+        
+        if file_extension == "txt":
+            data = np.loadtxt(data_path, skiprows=skiprows)
+        elif file_extension == "npy":
+            data = np.load(data_path)
+        elif file_extension == "csv":
+            data = np.genfromtxt(data_path, delimiter=',', skip_header=skiprows)
+
         if len(data_colIgnore) > 0:
             data_colIgnore = np.array([x for x in data_colIgnore.replace(' ', '').split(',') if x], dtype=int)
             data = np.delete(data, data_colIgnore, axis=1)
@@ -298,9 +330,9 @@ def launch_gui():
         return data
     
     
-    def displayMessage__createjob(message='', color='black'):  
-        job_message['text'] = message  
-        job_message['foreground'] = color 
+    # def displayMessage__plom_statusMessage(message='', color='black'):  
+    #     plom_statusMessage['text'] = message  
+    #     plom_statusMessage['foreground'] = color 
     
     
     def make_input_deck(plom_gui_input):
@@ -310,7 +342,7 @@ def launch_gui():
         
         [job_name, job_path, diagnostics_criteria, diagnostics_inputType, 
          diagnostics_inputValue, data_path, data_columnsAre, data_hasLabels, 
-         data_hasIndices, data_colIgnore, data_rowIgnore, scaling_yesNo, 
+         data_hasIndices, data_sheetName, data_colIgnore, data_rowIgnore, scaling_yesNo, 
          scaling_method, pca_yesNo, pca_method, pca_criteria, pca_scaleEvecs,
          dmaps_yesNo, dmaps_epsilon, dmaps_kappa, dmaps_L, dmaps_firstEigvec, 
          dmaps_dim, projection_yesNo, projection_source, projection_target, 
@@ -391,8 +423,8 @@ def launch_gui():
          f'parallel           {sampling_parallel}\n',
          f'n_jobs             {sampling_njobs}\n',
          f'save_samples       {sampling_saveSamples}\n',
-         f'samples_fname      output/samples.{sampling_samplesFType} # if None, file will be named using job_desc and save time\n',
-         #f'samples_fmt        {sampling_samplesFType} # npy or txt\n',
+         f'samples_fname      output/samples # if None, file will be named using job_desc and save time\n',
+         f'samples_fmt        {sampling_samplesFType} # npy or txt\n',
          '\n',
          '\n',
          
@@ -422,7 +454,7 @@ def launch_gui():
         
         [job_name, job_path, diagnostics_criteria, diagnostics_inputType, 
          diagnostics_inputValue, data_path, data_columnsAre, data_hasLabels, 
-         data_hasIndices, data_colIgnore, data_rowIgnore, scaling_yesNo, 
+         data_hasIndices, data_sheetName, data_colIgnore, data_rowIgnore, scaling_yesNo, 
          scaling_method, pca_yesNo, pca_method, pca_criteria, pca_scaleEvecs,
          dmaps_yesNo, dmaps_epsilon, dmaps_kappa, dmaps_L, dmaps_firstEigvec, 
          dmaps_dim, projection_yesNo, projection_source, projection_target, 
@@ -431,17 +463,17 @@ def launch_gui():
          sampling_saveSamples, sampling_samplesFType, sampling_parallel, 
          sampling_njobs, results_dict, results_plots] = plom_gui_input
         
-        if not job_name:
-            displayMessage__createjob('Enter valid job name', 'red')
-            return
+        # if not job_name:
+        #     displayMessage__plom_statusMessage('Enter valid job name', 'red')
+        #     return
         
-        if not job_path:
-            displayMessage__createjob('Enter valid job path', 'red')
-            return
+        # if not job_path:
+        #     displayMessage__plom_statusMessage('Enter valid job path', 'red')
+        #     return
         
-        if not data_path:
-            displayMessage__createjob('Enter valid data path', 'red')
-            return
+        # if not data_path:
+        #     displayMessage__plom_statusMessage('Enter valid data path', 'red')
+        #     return
         
         job_path_full = f'{job_path}/{job_name}'
         os.makedirs(job_path_full, exist_ok=True)
@@ -450,7 +482,8 @@ def launch_gui():
         
         save_session(f"{job_path_full}/session.txt")
         
-        training_data = load_training(data_path, data_columnsAre, data_hasLabels, 
+        
+        training_data = load_training_data(data_path, data_columnsAre, data_hasLabels, 
                                       data_hasIndices, data_colIgnore, data_rowIgnore)
         np.savetxt("training.txt", training_data)
         print(f"Training data loaded: {training_data.shape[0]} samples, {training_data.shape[1]} features")
@@ -460,7 +493,7 @@ def launch_gui():
         print("Input deck created")
         print(f'Input deck saved: "{job_path_full}/input.txt"\n')
         
-        displayMessage__createjob('Job created successfully', 'blue')
+        # displayMessage__plom_statusMessage('Job created successfully', 'blue')
     
     
     def run_job():
@@ -470,7 +503,7 @@ def launch_gui():
         
         [job_name, job_path, diagnostics_criteria, diagnostics_inputType, 
          diagnostics_inputValue, data_path, data_columnsAre, data_hasLabels, 
-         data_hasIndices, data_colIgnore, data_rowIgnore, scaling_yesNo, 
+         data_hasIndices, data_sheetName, data_colIgnore, data_rowIgnore, scaling_yesNo, 
          scaling_method, pca_yesNo, pca_method, pca_criteria, pca_scaleEvecs,
          dmaps_yesNo, dmaps_epsilon, dmaps_kappa, dmaps_L, dmaps_firstEigvec, 
          dmaps_dim, projection_yesNo, projection_source, projection_target, 
@@ -487,13 +520,13 @@ def launch_gui():
         input_deck_fname = "input.txt"
         
         if not os.path.exists(input_deck_fname):
-            displayMessage__createjob('Job input deck not found', 'red')
+            set_info_msg('Job input deck not found', 'red')
             return
         
         try:
             args = parse_input(input_deck_fname)
         except:
-            displayMessage__createjob('Unable to parse job input deck', 'red')
+            set_info_msg('Unable to parse job input deck', 'red')
             return
         
         print("\n\n*** JOB STARTING ***\n\n")
@@ -504,7 +537,7 @@ def launch_gui():
         save_dict(solution_dict, dict_path)
         print(f'\n\nResults dictionary saved: "{dict_path}"\n')
         
-        displayMessage__createjob('Job completed successfully', 'blue')
+        set_info_msg('Job completed successfully', 'blue')
         
         print("\n\n*** JOB COMPLETED SUCCESSFULLY ***\n\n")
         
@@ -550,12 +583,12 @@ def launch_gui():
     # Create the main window
     root = tk.Tk()
     root.title("PLoM GUI (USC-GM)")
-    root.geometry("1600x820")  # Set window size
+    root.geometry("1600x800")  # Set window size
     if os.path.isfile(ICON_PATH):
         root.iconbitmap(ICON_PATH)
     
     # Create a style
-    style = ttk.Style()
+    # style = ttk.Style()
     
     # Configure the style for TCombobox
     # style.configure('TCombobox', fieldbackground='orange', background='grey')
@@ -603,6 +636,9 @@ def launch_gui():
     if tab_switch__plomSampling:
         data_augmentation_tab = tk.Frame(tab_control)
         tab_control.add(data_augmentation_tab, text="PLoM Sampling")
+        name__data_augmentation_tab = "Data Augmentation Tab"
+        info_msg__data_augmentation_tab = ""
+        data_augmentation_tab.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__data_augmentation_tab, info_msg__data_augmentation_tab))
     
     # Create the "PLoM Results" tab
     if tab_switch__plomResults:
@@ -642,26 +678,78 @@ def launch_gui():
     #*************************   DATA AUGMENTATION TAB   *************************#
     
     if tab_switch__plomSampling:
+        
+        # Dictionary that tracks whether all required options are correctly specified
+        plom_settings_run_ready = {
+            'job_name': True,
+            'job_path': True,
+            'data_path': False,
+            'data_row_option':   False,
+            'data_column_option': False,
+            'data_rowIndicesIgnore': True,
+            'data_colIndicesIgnore': True,
+            'pca_criteria': True,
+            'dmaps_epsilon': True,
+            }
+        
+        def validate_run_ready(plom_settings_run_ready, key=None, value=None):
+            if key != None and value != None:
+                plom_settings_run_ready[key] = value
+                
+            if False in plom_settings_run_ready.values():
+                button_createJob["state"] = "disabled"
+                button_runJob["state"] = "disabled"
+            else:
+                button_createJob["state"] = "normal"
+                button_runJob["state"] = "normal"
+        
         # Create frames for layout in the "Data augmentation" tab
         plom_settings_frame = tk.Frame(data_augmentation_tab, width=400)
         plom_settings_frame.grid(row=0, column=0, sticky='ns')
+        name__plom_settings_frame = "PLoM Settings Frame 1"
+        info_msg__plom_settings_frame = ""
+        plom_settings_frame.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_settings_frame, info_msg__plom_settings_frame))
         
         plom_settings_frame2 = tk.Frame(data_augmentation_tab, width=400)
         plom_settings_frame2.grid(row=0, column=1, sticky='ns')
+        name__plom_settings_frame2 = "PLoM Settings Frame 2"
+        info_msg__plom_settings_frame2 = ""
+        plom_settings_frame2.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_settings_frame2, info_msg__plom_settings_frame2))
         
-        log_frame = tk.Frame(data_augmentation_tab)
-        log_frame.grid(row=0, column=2, sticky='nsew', pady=(0, 10), padx=(0, 10))
+        plom_log_frame = tk.Frame(data_augmentation_tab)
+        plom_log_frame.grid(row=0, column=2, rowspan=2, sticky='nsew', pady=(0, 10), padx=(0, 10))
+        name__plom_log_frame = "PLoM Log Frame"
+        info_msg__plom_log_frame = ""
+        plom_log_frame.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_log_frame, info_msg__plom_log_frame))
+         
+        plom_infoMessage = tk.Label(data_augmentation_tab, text='', foreground='black', justify='left')
+        plom_infoMessage.grid(row=1, column = 0, columnspan=2, sticky = 'w', padx=10, pady=(10, 0))
+        
+        # plom_statusMessage = tk.Label(data_augmentation_tab, text='', foreground='red')
+        # plom_statusMessage.grid(row=2, column = 0, columnspan=3, sticky = 'w', padx=10, pady=(0, 10))
         
         # Configure column weights for the frames
-        data_augmentation_tab.grid_columnconfigure(0, weight=0, minsize=400)  # Fixed width column with minsize
-        data_augmentation_tab.grid_columnconfigure(1, weight=0, minsize=400)
+        data_augmentation_tab.grid_columnconfigure(0, weight=0, minsize=420)  # Fixed width column with minsize
+        data_augmentation_tab.grid_columnconfigure(1, weight=0, minsize=420)
         data_augmentation_tab.grid_columnconfigure(2, weight=1)  # Expanding column
         
-        # Configure row weight (optional if you want the row to expand)
+        # Configure row weight so that the label doesn't push the frames upwards when the window expands
         data_augmentation_tab.grid_rowconfigure(0, weight=1)
+        data_augmentation_tab.grid_rowconfigure(1, weight=0)  # The label stays fixed in height
+        # data_augmentation_tab.grid_rowconfigure(2, weight=0)  # The label stays fixed in height
         
         # Configure plom_settings_frame to have a fixed width of 400 pixels
         plom_settings_frame.grid_propagate(False)  # Prevent the frame from resizing
+        plom_settings_frame2.grid_propagate(False)  # Prevent the frame from resizing
+        
+        # Configure the left frame grid columns to ensure proper alignment and expandability
+        plom_settings_frame.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
+        plom_settings_frame.grid_columnconfigure(1, weight=0)  # Entry column (expandable)
+        plom_settings_frame.grid_columnconfigure(2, weight=1)
+        
+        plom_settings_frame2.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
+        plom_settings_frame2.grid_columnconfigure(1, weight=0)  # Entry column (expandable)
+        plom_settings_frame2.grid_columnconfigure(2, weight=1)
         
         # Set row index for frames
         current_row = 0
@@ -673,217 +761,298 @@ def launch_gui():
         # settings_label2 = tk.Label(plom_settings_frame2, text="", anchor='w', font=("Arial", 12, "bold"))
         # settings_label2.grid(row=current_row, column=0, columnspan=2, sticky='w', padx=10, pady=(5, 5))
         
+        ################################################################################
+        ################################################################################
         
+        # # Group 1: PLoM job-related options
+        # current_row += 1
+        # frame__plom_job = tk.LabelFrame(plom_settings_frame, text="Job", padx=10, pady=10, font=("Arial", 10, "bold"))
+        # frame__plom_job.grid(row=current_row, column=0, columnspan=3, sticky='ew', padx=10, pady=(10, 5))
+        # name__plom_job = "PLoM Job Settings"
+        # info_msg__plom_job = ""
+        # frame__plom_job.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_job, info_msg__plom_job))
         
-        # Group 1: PLoM job-related options
-        current_row += 1
-        frame__plom_job = tk.LabelFrame(plom_settings_frame, text="Job", padx=10, pady=10, font=("Arial", 10, "bold"))
-        frame__plom_job.grid(row=current_row, column=0, columnspan=3, sticky='ew', padx=10, pady=(10, 5))
+        # opt_save__plom_job_name = tk.StringVar(frame__plom_job)
+        # opt_save__plom_job_name.set(f'job_{datetimeStr()}')
+        # opt_label__plom_job_name = tk.Label(frame__plom_job, text="Job name", anchor='w', fg='blue')
+        # opt_label__plom_job_name.grid(row=0, column=0, sticky='w', padx=(0, 5))
+        # opt_value__plom_job_name = tk.Entry(frame__plom_job, textvariable=opt_save__plom_job_name)
+        # opt_value__plom_job_name.grid(row=0, column=1, sticky='ew')
+        # name__plom_job_name = "PLoM Job Name"
+        # info_msg__plom_job_name = "Job name: A directory with this name will be created under <Job path>. All run related files will be saved here."
+        # opt_label__plom_job_name.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_job_name, info_msg__plom_job_name))
+        # opt_value__plom_job_name.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_job_name, info_msg__plom_job_name))
         
-        opt_save__plom_job_name = tk.StringVar(frame__plom_job)
-        opt_save__plom_job_name.set(f'job_{datetimeStr()}')
-        opt_label__plom_job_name = tk.Label(frame__plom_job, text="Job name", anchor='w')
-        opt_label__plom_job_name.grid(row=0, column=0, sticky='w', padx=(0, 5))
-        opt_value__plom_job_name = tk.Entry(frame__plom_job, textvariable=opt_save__plom_job_name)
-        opt_value__plom_job_name.grid(row=0, column=1, sticky='ew')
+        # def validate__plom_job_name(P, d, i, S, V):
+        #     input_str = P
+        #     why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+        #     # idx = i # index of insertion, or -1
+        #     # what = S # inserted character
+        #     # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+        #     ## any input is acceptable as long as it does not contain characters prohibited in directory names by the OS
+        #     ## value must be a valid folder name, i.e. contains characters other than ' ' and '.'
+            
+        #     invalid_chars = r'\/:*?<>|"'
+        #     input_ok = not(any(char in invalid_chars for char in input_str))
+            
+        #     if not input_ok:
+        #         input_str = opt_value__plom_job_name.get()
+            
+        #     pattern_ok = input_str.replace(" ", "").replace(".", "") != ""
+            
+        #     color = 'blue' if pattern_ok else 'red'
+            
+        #     opt_label__plom_job_name['foreground'] = color
+            
+        #     validate_run_ready(plom_settings_run_ready, 'job_name', pattern_ok)
+            
+        #     if why == "0":
+        #         return True
+            
+        #     return input_ok
         
-        opt_save__plom_job_path = tk.StringVar(frame__plom_job)
-        opt_save__plom_job_path.set(os.path.expanduser("~"))
+        # reg_val__validate__plom_job_name = root.register(validate__plom_job_name)
+        # opt_value__plom_job_name.config(validate="all", validatecommand=(reg_val__validate__plom_job_name, '%P', '%d', '%i', '%S', '%V'))
         
-        opt_label__plom_job_path = tk.Label(frame__plom_job, text="Job path", anchor='w', fg='blue')
-        opt_label__plom_job_path.grid(row=1, column=0, sticky='w', padx=(0, 5))
-        opt_value__plom_job_path = tk.Entry(frame__plom_job, textvariable=opt_save__plom_job_path)
-        opt_value__plom_job_path.grid(row=1, column=1, sticky='ew')
+        # #---------------------------------------------------------------------------------------------------#
         
-        browse_button__plom_job_path = tk.Button(frame__plom_job, text="Browse", command=lambda: browse_folder(opt_value__plom_job_path))
-        browse_button__plom_job_path.grid(row=1, column=2, sticky='ew', padx=(5, 0))
+        # opt_save__plom_job_path = tk.StringVar(frame__plom_job)
+        # opt_save__plom_job_path.set(os.path.expanduser("~"))
+        # opt_label__plom_job_path = tk.Label(frame__plom_job, text="Job path", anchor='w', fg='blue')
+        # opt_label__plom_job_path.grid(row=1, column=0, sticky='w', padx=(0, 5))
+        # opt_value__plom_job_path = tk.Entry(frame__plom_job, textvariable=opt_save__plom_job_path)
+        # opt_value__plom_job_path.grid(row=1, column=1, sticky='ew')
+        # name__plom_job_path = "PLoM Job Path"
+        # info_msg__plom_job_path = "Job path: Root directoy under which a directory named <Job name> will be created. Must be a valid absolute path."
+        # opt_label__plom_job_path.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_job_path, info_msg__plom_job_path))
+        # opt_value__plom_job_path.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_job_path, info_msg__plom_job_path))
         
-        # Configure the frame__plom_job grid columns to ensure proper alignment and expandability
-        frame__plom_job.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
-        frame__plom_job.grid_columnconfigure(1, weight=1)  # Entry column (expandable)
-        frame__plom_job.grid_columnconfigure(2, weight=0)  # Button column (fixed size)
+        # browse_button__plom_job_path = tk.Button(frame__plom_job, text="Browse", command=lambda: browse_folder(opt_value__plom_job_path))
+        # browse_button__plom_job_path.grid(row=1, column=2, sticky='ew', padx=(5, 0))
+        # browse_button__plom_job_path.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event))
+        
+        # def validate__plom_job_path(P, d, i, S, V):
+        #     input_str = P
+        #     why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+        #     # idx = i # index of insertion, or -1
+        #     # what = S # inserted character
+        #     # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+        #     ## any input is acceptable as long as it does not contain characters prohibited in directory names by the OS
+        #     ## value must be an absolute path
+            
+        #     invalid_chars = r'?<>|"'
+        #     input_ok = not(any(char in invalid_chars for char in input_str))
+            
+        #     if not input_ok:
+        #         input_str = opt_value__plom_job_path.get()
+            
+        #     pattern_ok = os.path.isabs(input_str)
+            
+        #     color = 'blue' if pattern_ok else 'red'
+            
+        #     opt_label__plom_job_path['foreground'] = color
+        #     opt_value__plom_job_path['foreground'] = color
+            
+        #     validate_run_ready(plom_settings_run_ready, 'job_path', pattern_ok)
+            
+        #     if why == "0":
+        #         return True
+            
+        #     return input_ok
+                
+        # reg_val__validate__plom_job_path = root.register(validate__plom_job_path)
+        # opt_value__plom_job_path.config(validate="all", validatecommand=(reg_val__validate__plom_job_path, '%P', '%d', '%i', '%S', '%V'))
+        
+        # #---------------------------------------------------------------------------------------------------#
+        
+        # # Configure the frame__plom_job grid columns to ensure proper alignment and expandability
+        # frame__plom_job.grid_columnconfigure(0, weight=0, minsize=60)  # Label column (fixed size)
+        # frame__plom_job.grid_columnconfigure(1, weight=0, minsize=240)  # Entry column (expandable)
+        # frame__plom_job.grid_columnconfigure(2, weight=1)  # Button column (fixed size)
         
         ################################################################################
         ################################################################################
         
         # PLoM diagnostics-related options
-        group_row = 0
-        current_row += 1
-        frame__plom_diag = tk.LabelFrame(plom_settings_frame, text="Diagnostics", padx=10, pady=10, font=("Arial", 10, "bold"))
-        frame__plom_diag.grid(row=current_row, column=0, columnspan=2, sticky='ew', padx=10, pady=(10, 5))
+        # group_row = 0
+        # current_row += 1
+        # frame__plom_diag = tk.LabelFrame(plom_settings_frame, text="Diagnostics", padx=10, pady=10, font=("Arial", 10, "bold"))
+        # frame__plom_diag.grid(row=current_row, column=0, columnspan=2, sticky='ew', padx=10, pady=(10, 5))
         
-        diag_criteria_options = [" (None)", " Sample size (N)", " DMaps kernel bandwidth (epsilon)"]
-        opt_save__plom_diag_criteria = tk.StringVar(frame__plom_diag)
-        opt_label__plom_diag_criteria = tk.Label(frame__plom_diag, text="Convergence citeria", anchor='w')
-        opt_label__plom_diag_criteria.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
-        opt_value__plom_diag_criteria = ttk.Combobox(frame__plom_diag, values=diag_criteria_options, state='readonly', textvariable=opt_save__plom_diag_criteria)
-        opt_value__plom_diag_criteria.current(0)
-        opt_value__plom_diag_criteria.grid(row=group_row, column=1, sticky='ew')
+        # diag_criteria_options = [" (None)", " Sample size (N)", " DMaps kernel bandwidth (epsilon)"]
+        # opt_save__plom_diag_criteria = tk.StringVar(frame__plom_diag)
+        # opt_label__plom_diag_criteria = tk.Label(frame__plom_diag, text="Convergence citeria", anchor='w')
+        # opt_label__plom_diag_criteria.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        # opt_value__plom_diag_criteria = ttk.Combobox(frame__plom_diag, values=diag_criteria_options, state='readonly', textvariable=opt_save__plom_diag_criteria)
+        # opt_value__plom_diag_criteria.current(0)
+        # opt_value__plom_diag_criteria.grid(row=group_row, column=1, sticky='ew')
         
-        def update_diagnostics_label(event):
-            print("updating label")
-            selected_option = opt_save__plom_diag_criteria.get()
-            # input_type  = opt_save__plom_diag_inputType.get().strip()
-            if selected_option == diag_criteria_options[0]:
-                opt_label__plom_diag_inputValue.config(text="Criteria values")
-                opt_value__plom_diag_inputType.config(state="disabled")
-                opt_value__plom_diag_inputValue.config(state="disabled")  # Disable the entry field
-                displayMessage__plom_diag_inputValue()
-            elif selected_option == diag_criteria_options[1]:
-                opt_value__plom_diag_inputType.config(state="readonly")
-                opt_label__plom_diag_inputValue.config(text="Sample size values")
-                opt_value__plom_diag_inputValue.config(state="normal", validate="all", validatecommand=(reg_val__validate__plom_diag_inputValue, '%P', '%d', '%i', '%S', '%V'))  # Enable the entry field
-            elif selected_option == diag_criteria_options[2]:
-                opt_value__plom_diag_inputType.config(state="readonly")
-                opt_label__plom_diag_inputValue.config(text="Epsilon values")
-                opt_value__plom_diag_inputValue.config(state="normal", validate="all", validatecommand=(reg_val__validate__plom_diag_inputValue, '%P', '%d', '%i', '%S', '%V'))  # Enable the entry field
+        # def update_diagnostics_label(event):
+        #     print("updating label")
+        #     selected_option = opt_save__plom_diag_criteria.get()
+        #     # input_type  = opt_save__plom_diag_inputType.get().strip()
+        #     if selected_option == diag_criteria_options[0]:
+        #         opt_label__plom_diag_inputValue.config(text="Criteria values")
+        #         opt_value__plom_diag_inputType.config(state="disabled")
+        #         opt_value__plom_diag_inputValue.config(state="disabled")  # Disable the entry field
+        #         displayMessage__plom_diag_inputValue()
+        #     elif selected_option == diag_criteria_options[1]:
+        #         opt_value__plom_diag_inputType.config(state="readonly")
+        #         opt_label__plom_diag_inputValue.config(text="Sample size values")
+        #         opt_value__plom_diag_inputValue.config(state="normal", validate="all", validatecommand=(reg_val__validate__plom_diag_inputValue, '%P', '%d', '%i', '%S', '%V'))  # Enable the entry field
+        #     elif selected_option == diag_criteria_options[2]:
+        #         opt_value__plom_diag_inputType.config(state="readonly")
+        #         opt_label__plom_diag_inputValue.config(text="Epsilon values")
+        #         opt_value__plom_diag_inputValue.config(state="normal", validate="all", validatecommand=(reg_val__validate__plom_diag_inputValue, '%P', '%d', '%i', '%S', '%V'))  # Enable the entry field
         
-        opt_value__plom_diag_criteria.bind("<<ComboboxSelected>>", update_diagnostics_label)
+        # opt_value__plom_diag_criteria.bind("<<ComboboxSelected>>", update_diagnostics_label)
         
         
-        group_row += 1
-        diag_criteria_input_types = [" Min, Max, Step", " Min, Max, Num cases", " List of values"]
-        opt_save__plom_diag_inputType = tk.StringVar(frame__plom_diag)
-        opt_label__plom_diag_inputType = tk.Label(frame__plom_diag, text="Input type", anchor='w')
-        opt_label__plom_diag_inputType.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
-        opt_value__plom_diag_inputType = ttk.Combobox(frame__plom_diag, values=diag_criteria_input_types, state='disabled', textvariable=opt_save__plom_diag_inputType)
-        opt_value__plom_diag_inputType.current(0)
-        opt_value__plom_diag_inputType.grid(row=group_row, column=1, sticky='ew')
-        opt_value__plom_diag_inputType.bind("<<ComboboxSelected>>", update_diagnostics_label)
+        # group_row += 1
+        # diag_criteria_input_types = [" Min, Max, Step", " Min, Max, Num cases", " List of values"]
+        # opt_save__plom_diag_inputType = tk.StringVar(frame__plom_diag)
+        # opt_label__plom_diag_inputType = tk.Label(frame__plom_diag, text="Input type", anchor='w')
+        # opt_label__plom_diag_inputType.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        # opt_value__plom_diag_inputType = ttk.Combobox(frame__plom_diag, values=diag_criteria_input_types, state='disabled', textvariable=opt_save__plom_diag_inputType)
+        # opt_value__plom_diag_inputType.current(0)
+        # opt_value__plom_diag_inputType.grid(row=group_row, column=1, sticky='ew')
+        # opt_value__plom_diag_inputType.bind("<<ComboboxSelected>>", update_diagnostics_label)
         
-        group_row += 1
-        opt_save__plom_diag_inputValue = tk.StringVar(frame__plom_diag)
-        opt_label__plom_diag_inputValue = tk.Label(frame__plom_diag, text="Criteria values", anchor='w')
-        opt_label__plom_diag_inputValue.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
-        opt_value__plom_diag_inputValue = tk.Entry(frame__plom_diag, state="disabled", textvariable=opt_save__plom_diag_inputValue)
-        opt_value__plom_diag_inputValue.grid(row=group_row, column=1, sticky='ew')
+        # group_row += 1
+        # opt_save__plom_diag_inputValue = tk.StringVar(frame__plom_diag)
+        # opt_label__plom_diag_inputValue = tk.Label(frame__plom_diag, text="Criteria values", anchor='w')
+        # opt_label__plom_diag_inputValue.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        # opt_value__plom_diag_inputValue = tk.Entry(frame__plom_diag, state="disabled", textvariable=opt_save__plom_diag_inputValue)
+        # opt_value__plom_diag_inputValue.grid(row=group_row, column=1, sticky='ew')
         
-        def validate__plom_diag_inputValue(P, d, i, S, V):
-            input_str = P
-            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
-            idx = i # index of insertion, or -1
-            what = S # inserted character
-            reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
-            print(reason)
+        # def validate__plom_diag_inputValue(P, d, i, S, V):
+        #     input_str = P
+        #     why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+        #     idx = i # index of insertion, or -1
+        #     what = S # inserted character
+        #     reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+        #     print(reason)
             
-            if opt_save__plom_diag_criteria.get() == diag_criteria_options[1]: # SAMPLE SIZE CONVERGENCE
-                if opt_save__plom_diag_inputType.get() in diag_criteria_input_types[0:2]:
-                    pattern = r"^\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*$"
-                elif opt_save__plom_diag_inputType.get() == diag_criteria_input_types[2]:
-                    pattern = r"^\s*\d+(\s*,\s*\d+)*\s*$"
-                match = re.match(pattern, input_str)
+        #     if opt_save__plom_diag_criteria.get() == diag_criteria_options[1]: # SAMPLE SIZE CONVERGENCE
+        #         if opt_save__plom_diag_inputType.get() in diag_criteria_input_types[0:2]:
+        #             pattern = r"^\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*$"
+        #         elif opt_save__plom_diag_inputType.get() == diag_criteria_input_types[2]:
+        #             pattern = r"^\s*\d+(\s*,\s*\d+)*\s*$"
+        #         match = re.match(pattern, input_str)
             
-                if reason == "focusin" or reason == "focusout":
-                    if len(input_str) == 0:
-                        displayMessage__plom_diag_inputValue()
-                        return True
-                    if match:
-                        if opt_save__plom_diag_inputType.get() in diag_criteria_input_types[0:2]:
-                            a, b, c = map(int, match.groups())
-                            if b < a:
-                                displayMessage__plom_diag_inputValue(error="Max should be >= Min", color='red')
-                                return False
-                            if c == 0:
-                                if opt_save__plom_diag_inputType.get() == diag_criteria_input_types[0]:
-                                    displayMessage__plom_diag_inputValue(error="Step should be > 0", color='red')
-                                else:
-                                    displayMessage__plom_diag_inputValue(error="Num cases should be > 0", color='red')
-                                return False
-                            displayMessage__plom_diag_inputValue()
-                            return True
-                        elif opt_save__plom_diag_inputType.get() == diag_criteria_input_types[2]:
-                            integers = list(map(int, re.findall(r"\d+", input_str)))
-                            if min(integers) == 0:
-                                displayMessage__plom_diag_inputValue(error="All values should be > 0", color='red')
-                                return False
-                            displayMessage__plom_diag_inputValue()
-                            return True
-                    else:
-                        if opt_save__plom_diag_inputType.get() in diag_criteria_input_types[0:2]:
-                            displayMessage__plom_diag_inputValue(error = 'Input should follow the pattern: integer1, integer2, integer3', color = 'red')
-                        elif  opt_save__plom_diag_inputType.get() == diag_criteria_input_types[2]:
-                            displayMessage__plom_diag_inputValue(error = 'Input should follow the pattern: integer1, integer2, ...', color = 'red')
-                        return False
+        #         if reason == "focusin" or reason == "focusout":
+        #             if len(input_str) == 0:
+        #                 displayMessage__plom_diag_inputValue()
+        #                 return True
+        #             if match:
+        #                 if opt_save__plom_diag_inputType.get() in diag_criteria_input_types[0:2]:
+        #                     a, b, c = map(int, match.groups())
+        #                     if b < a:
+        #                         displayMessage__plom_diag_inputValue(error="Max should be >= Min", color='red')
+        #                         return False
+        #                     if c == 0:
+        #                         if opt_save__plom_diag_inputType.get() == diag_criteria_input_types[0]:
+        #                             displayMessage__plom_diag_inputValue(error="Step should be > 0", color='red')
+        #                         else:
+        #                             displayMessage__plom_diag_inputValue(error="Num cases should be > 0", color='red')
+        #                         return False
+        #                     displayMessage__plom_diag_inputValue()
+        #                     return True
+        #                 elif opt_save__plom_diag_inputType.get() == diag_criteria_input_types[2]:
+        #                     integers = list(map(int, re.findall(r"\d+", input_str)))
+        #                     if min(integers) == 0:
+        #                         displayMessage__plom_diag_inputValue(error="All values should be > 0", color='red')
+        #                         return False
+        #                     displayMessage__plom_diag_inputValue()
+        #                     return True
+        #             else:
+        #                 if opt_save__plom_diag_inputType.get() in diag_criteria_input_types[0:2]:
+        #                     displayMessage__plom_diag_inputValue(error = 'Input should follow the pattern: integer1, integer2, integer3', color = 'red')
+        #                 elif  opt_save__plom_diag_inputType.get() == diag_criteria_input_types[2]:
+        #                     displayMessage__plom_diag_inputValue(error = 'Input should follow the pattern: integer1, integer2, ...', color = 'red')
+        #                 return False
                 
-                if why == "1": # insertion
-                    if what.isdigit() or what == " " or what == ",":
-                        displayMessage__plom_diag_inputValue()
-                        return True
-                    else:
-                        return False
+        #         if why == "1": # insertion
+        #             if what.isdigit() or what == " " or what == ",":
+        #                 displayMessage__plom_diag_inputValue()
+        #                 return True
+        #             else:
+        #                 return False
                 
-                if why == "0":
-                    displayMessage__plom_diag_inputValue()
-                    return True
+        #         if why == "0":
+        #             displayMessage__plom_diag_inputValue()
+        #             return True
             
-            elif opt_save__plom_diag_criteria.get() == diag_criteria_options[2]: # EPSILON CONVERGENCE
-                if why == "1": # insertion
-                    if what.isdigit() or what in [" ", ",", "."]:
-                        displayMessage__plom_diag_inputValue()
-                        return True
-                    else:
-                        return False
+        #     elif opt_save__plom_diag_criteria.get() == diag_criteria_options[2]: # EPSILON CONVERGENCE
+        #         if why == "1": # insertion
+        #             if what.isdigit() or what in [" ", ",", "."]:
+        #                 displayMessage__plom_diag_inputValue()
+        #                 return True
+        #             else:
+        #                 return False
                 
-                if why == "0":
-                    displayMessage__plom_diag_inputValue()
-                    return True
+        #         if why == "0":
+        #             displayMessage__plom_diag_inputValue()
+        #             return True
                 
-                if opt_save__plom_diag_inputType.get() == diag_criteria_input_types[0]:
-                    pattern = r"^\s*\d+(\.\d+)?\s*,\s*\d+(\.\d+)?\s*,\s*\d+(\.\d+)?\s*$"
-                elif opt_save__plom_diag_inputType.get() == diag_criteria_input_types[1]:
-                    pattern = r"^\s*\d+(\.\d+)?\s*,\s*\d+(\.\d+)?\s*,\s*\d+\s*$"
-                match = re.match(pattern, input_str)
+        #         if opt_save__plom_diag_inputType.get() == diag_criteria_input_types[0]:
+        #             pattern = r"^\s*\d+(\.\d+)?\s*,\s*\d+(\.\d+)?\s*,\s*\d+(\.\d+)?\s*$"
+        #         elif opt_save__plom_diag_inputType.get() == diag_criteria_input_types[1]:
+        #             pattern = r"^\s*\d+(\.\d+)?\s*,\s*\d+(\.\d+)?\s*,\s*\d+\s*$"
+        #         match = re.match(pattern, input_str)
                 
-                if reason == "focusin" or reason == "focusout":
-                    if len(input_str) == 0:
-                        displayMessage__plom_diag_inputValue()
-                        return True
-                    if match:
-                        if opt_save__plom_diag_inputType.get() in diag_criteria_input_types[0:2]:
-                            a, b, c = map(float, re.findall(r"\d+\.\d+|\d+", input_str))
-                            if b < a:
-                                displayMessage__plom_diag_inputValue(error="Max should be >= Min", color='red')
-                                return False
-                            if c == 0:
-                                if opt_save__plom_diag_inputType.get() == diag_criteria_input_types[0]:
-                                    displayMessage__plom_diag_inputValue(error="Step should be > 0", color='red')
-                                else:
-                                    displayMessage__plom_diag_inputValue(error="Num cases should be > 0", color='red')
-                                return False
-                            displayMessage__plom_diag_inputValue()
-                            return True
-                        elif opt_save__plom_diag_inputType.get() == diag_criteria_input_types[2]:
-                            floats = list(map(float, re.findall(r"\d+", input_str)))
-                            if min(floats) == 0:
-                                displayMessage__plom_diag_inputValue(error="All values should be > 0", color='red')
-                                return False
-                            displayMessage__plom_diag_inputValue()
-                            return True
-                    else:
-                        if opt_save__plom_diag_inputType.get() == diag_criteria_input_types[0]:
-                            displayMessage__plom_diag_inputValue(error = 'Input should follow the pattern: value1, value2, value3', color = 'red')
-                        if opt_save__plom_diag_inputType.get() == diag_criteria_input_types[1]:
-                            displayMessage__plom_diag_inputValue(error = 'Input should follow the pattern: value1, value2, integer', color = 'red')
-                        elif  opt_save__plom_diag_inputType.get() == diag_criteria_input_types[2]:
-                            displayMessage__plom_diag_inputValue(error = 'Input should follow the pattern: value1, value2, ...', color = 'red')
-                        return False
+        #         if reason == "focusin" or reason == "focusout":
+        #             if len(input_str) == 0:
+        #                 displayMessage__plom_diag_inputValue()
+        #                 return True
+        #             if match:
+        #                 if opt_save__plom_diag_inputType.get() in diag_criteria_input_types[0:2]:
+        #                     a, b, c = map(float, re.findall(r"\d+\.\d+|\d+", input_str))
+        #                     if b < a:
+        #                         displayMessage__plom_diag_inputValue(error="Max should be >= Min", color='red')
+        #                         return False
+        #                     if c == 0:
+        #                         if opt_save__plom_diag_inputType.get() == diag_criteria_input_types[0]:
+        #                             displayMessage__plom_diag_inputValue(error="Step should be > 0", color='red')
+        #                         else:
+        #                             displayMessage__plom_diag_inputValue(error="Num cases should be > 0", color='red')
+        #                         return False
+        #                     displayMessage__plom_diag_inputValue()
+        #                     return True
+        #                 elif opt_save__plom_diag_inputType.get() == diag_criteria_input_types[2]:
+        #                     floats = list(map(float, re.findall(r"\d+", input_str)))
+        #                     if min(floats) == 0:
+        #                         displayMessage__plom_diag_inputValue(error="All values should be > 0", color='red')
+        #                         return False
+        #                     displayMessage__plom_diag_inputValue()
+        #                     return True
+        #             else:
+        #                 if opt_save__plom_diag_inputType.get() == diag_criteria_input_types[0]:
+        #                     displayMessage__plom_diag_inputValue(error = 'Input should follow the pattern: value1, value2, value3', color = 'red')
+        #                 if opt_save__plom_diag_inputType.get() == diag_criteria_input_types[1]:
+        #                     displayMessage__plom_diag_inputValue(error = 'Input should follow the pattern: value1, value2, integer', color = 'red')
+        #                 elif  opt_save__plom_diag_inputType.get() == diag_criteria_input_types[2]:
+        #                     displayMessage__plom_diag_inputValue(error = 'Input should follow the pattern: value1, value2, ...', color = 'red')
+        #                 return False
         
-        def displayMessage__plom_diag_inputValue(error = '', color = 'black'):  
-            error_label__plom_diag_inputValue['text'] = error  
-            opt_value__plom_diag_inputValue['foreground'] = color  
+        # def displayMessage__plom_diag_inputValue(error = '', color = 'black'):  
+        #     error_label__plom_diag_inputValue['text'] = error  
+        #     opt_value__plom_diag_inputValue['foreground'] = color  
         
-        reg_val__validate__plom_diag_inputValue = root.register(validate__plom_diag_inputValue)
-        opt_value__plom_diag_inputValue.config(validate="all", validatecommand=(reg_val__validate__plom_diag_inputValue, '%P', '%d', '%i', '%S', '%V'))
-        
-        
-        #-# error label
-        group_row += 1
-        error_label__plom_diag_inputValue = ttk.Label(frame__plom_diag, foreground = 'red')  
-        error_label__plom_diag_inputValue.grid(row = group_row, column = 0, columnspan=2, sticky = 'w')
+        # reg_val__validate__plom_diag_inputValue = root.register(validate__plom_diag_inputValue)
+        # opt_value__plom_diag_inputValue.config(validate="all", validatecommand=(reg_val__validate__plom_diag_inputValue, '%P', '%d', '%i', '%S', '%V'))
         
         
-        frame__plom_diag.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
-        frame__plom_diag.grid_columnconfigure(1, weight=1)  # Entry column (expandable)
+        # #-# error label
+        # group_row += 1
+        # error_label__plom_diag_inputValue = ttk.Label(frame__plom_diag, foreground = 'red')  
+        # error_label__plom_diag_inputValue.grid(row = group_row, column = 0, columnspan=2, sticky = 'w')
+        
+        
+        # frame__plom_diag.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
+        # frame__plom_diag.grid_columnconfigure(1, weight=1)  # Entry column (expandable)
         
         ################################################################################
         ################################################################################
@@ -891,88 +1060,292 @@ def launch_gui():
         # Group 2: PLoM data-related options
         group_row = 0
         current_row += 1
-        frame__plom_data = tk.LabelFrame(plom_settings_frame, text="Data", padx=10, pady=10, font=("Arial", 10, "bold"))
+        frame__plom_data = tk.LabelFrame(plom_settings_frame, text="Training Data", padx=10, pady=10, font=("Arial", 10, "bold"))
         frame__plom_data.grid(row=current_row, column=0, columnspan=3, sticky='ew', padx=10, pady=(10, 5))
+        name__plom_data = "PLoM Training Data Settings"
+        info_msg__plom_data = ""
+        frame__plom_data.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data, info_msg__plom_data))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         opt_save__plom_data_path = tk.StringVar(frame__plom_data)
-        opt_label__plom_data_path = tk.Label(frame__plom_data, text="Data path", anchor='w', fg='blue')
+        opt_label__plom_data_path = tk.Label(frame__plom_data, text="Data path", anchor='w', fg='red')
         opt_label__plom_data_path.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
         opt_value__plom_data_path = tk.Entry(frame__plom_data, textvariable=opt_save__plom_data_path)
         opt_value__plom_data_path.grid(row=group_row, column=1, sticky='ew')
+        name__plom_data_path = "PLoM Training Data Path"
+        info_msg__plom_data_path = "Data path: Training data file path. Must be a valid file path of a raw data, csv, or Excel file."
+        opt_label__plom_data_path.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_path, info_msg__plom_data_path))
+        opt_value__plom_data_path.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_path, info_msg__plom_data_path))
+        
         opt_button__plom_data_path = tk.Button(frame__plom_data, text="Browse", command=lambda: browse_file(opt_value__plom_data_path))
         opt_button__plom_data_path.grid(row=group_row, column=2, sticky='ew', padx=(5, 0))
+        opt_button__plom_data_path.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event))
+        
+        def validate__plom_data_path(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            # what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            ## any input is acceptable
+            ## value must be a valid file path
+            
+            input_ok = True
+            
+            pattern_ok = os.path.isfile(input_str)
+            
+            color = 'blue' if pattern_ok else 'red'
+            
+            opt_label__plom_data_path['foreground'] = color
+            opt_value__plom_data_path['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'data_path', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_data_path = root.register(validate__plom_data_path)
+        opt_value__plom_data_path.config(validate="all", validatecommand=(reg_val__validate__plom_data_path, '%P', '%d', '%i', '%S', '%V'))
+        
+        
+        def plom_data_path_update(*args):
+            extension = opt_save__plom_data_path.get().split('.')[-1]
+            if extension in ['xls', 'xlsx', 'xlsm', 'xlsb']:
+                opt_label__plom_data_sheetName.grid()
+                opt_value__plom_data_sheetName.grid()
+                opt_label__plom_data_delimiter.grid_remove()
+                opt_value__plom_data_delimiter.grid_remove()
+                
+                opt_label__plom_data_rowRange.grid()
+                opt_value__plom_data_rowRange.grid()
+                opt_label__plom_data_hasLabels.grid_remove()
+                opt_value__plom_data_hasLabels.grid_remove()
+                
+                opt_label__plom_data_columnRange.grid()
+                opt_value__plom_data_columnRange.grid()
+                opt_label__plom_data_hasIndices.grid_remove()
+                opt_value__plom_data_hasIndices.grid_remove()
+                
+                plom_settings_run_ready['data_row_option'] = False
+                plom_settings_run_ready['data_column_option'] = False
+                validate_run_ready(plom_settings_run_ready)
+                
+            else:
+                opt_label__plom_data_sheetName.grid_remove()
+                opt_value__plom_data_sheetName.grid_remove()
+                opt_label__plom_data_delimiter.grid()
+                opt_value__plom_data_delimiter.grid()
+                
+                opt_label__plom_data_rowRange.grid_remove()
+                opt_value__plom_data_rowRange.grid_remove()
+                opt_label__plom_data_hasLabels.grid()
+                opt_value__plom_data_hasLabels.grid()
+                
+                opt_label__plom_data_columnRange.grid_remove()
+                opt_value__plom_data_columnRange.grid_remove()
+                opt_label__plom_data_hasIndices.grid()
+                opt_value__plom_data_hasIndices.grid()
+                
+                plom_settings_run_ready['data_row_option'] = True
+                plom_settings_run_ready['data_column_option'] = True
+                validate_run_ready(plom_settings_run_ready)
+                
+        opt_save__plom_data_path.trace_add("write", plom_data_path_update)  
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        group_row += 1
+        data_delimiter_options = ([" (Default)", " , (comma)", " Tab"])
+        opt_save__plom_data_delimiter = tk.StringVar()
+        opt_label__plom_data_delimiter = tk.Label(frame__plom_data, text="Delimiter", anchor='w')
+        opt_label__plom_data_delimiter.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        opt_value__plom_data_delimiter = ttk.Combobox(frame__plom_data, values=data_delimiter_options, state='readonly', textvariable=opt_save__plom_data_delimiter)
+        opt_value__plom_data_delimiter.current(0)
+        opt_value__plom_data_delimiter.grid(row=group_row, column=1, sticky='ew')
+        name__plom_data_delimiter = "PLoM data delimited"
+        info_msg__plom_data_delimiter = "Delimiter: Specifies delimiter if training data is raw data. If (Default), the default behavior of the data loading function is used."
+        opt_label__plom_data_delimiter.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_delimiter, info_msg__plom_data_delimiter))
+        opt_value__plom_data_delimiter.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_delimiter, info_msg__plom_data_delimiter))
+        
+        ## option if data file is excel
+        opt_save__plom_data_sheetName = tk.StringVar()
+        opt_label__plom_data_sheetName = tk.Label(frame__plom_data, text="Excel sheet name", anchor='w')
+        opt_label__plom_data_sheetName.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        opt_label__plom_data_sheetName.grid_remove()
+        opt_value__plom_data_sheetName = tk.Entry(frame__plom_data, textvariable=opt_save__plom_data_sheetName)
+        opt_value__plom_data_sheetName.grid(row=group_row, column=1, sticky='ew')
+        opt_value__plom_data_sheetName.grid_remove()
+        name__plom_data_sheetName = "PLoM data sheet name"
+        info_msg__plom_data_sheetName = "Excel sheet name: The name of the sheet containing the data to be read. If left blank, the first sheet in the Excel file is read."
+        opt_label__plom_data_sheetName.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_sheetName, info_msg__plom_data_sheetName))
+        opt_value__plom_data_sheetName.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_sheetName, info_msg__plom_data_sheetName))
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        group_row += 1
+        separator__plom_data_1 = ttk.Separator(frame__plom_data, orient='horizontal')
+        separator__plom_data_1.grid(row=group_row, columnspan=3, sticky="ew", pady=(5, 5))
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        group_row += 1
+        opt_save__plom_data_hasLabels = tk.IntVar()
+        opt_label__plom_data_hasLabels = tk.Label(frame__plom_data, text="Features have labels", anchor='w')
+        opt_label__plom_data_hasLabels.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        opt_value__plom_data_hasLabels = tk.Checkbutton(frame__plom_data, variable=opt_save__plom_data_hasLabels, onvalue = 1, offvalue = 0, anchor='w')
+        opt_value__plom_data_hasLabels.grid(row=group_row, column=1, sticky='ew')
+        name__plom_data_hasLabels = "PLoM data has labels"
+        info_msg__plom_data_hasLabels = "Features have labels: Option for non-Excel data files. If checked, the first line in the file will be ignored."
+        opt_label__plom_data_hasLabels.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_hasLabels, info_msg__plom_data_hasLabels))
+        opt_value__plom_data_hasLabels.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_hasLabels, info_msg__plom_data_hasLabels))
+        
+        ## option if data file is excel
+        opt_save__plom_data_rowRange = tk.StringVar(frame__plom_data)
+        opt_label__plom_data_rowRange = tk.Label(frame__plom_data, text="Row range", anchor='w', fg='red')
+        opt_label__plom_data_rowRange.grid(row=group_row, column=0, sticky='w', padx=(0, 5), pady=(2, 0))
+        opt_value__plom_data_rowRange = tk.Entry(frame__plom_data, textvariable=opt_save__plom_data_rowRange)
+        opt_value__plom_data_rowRange.grid(row=group_row, column=1, sticky='ew')
+        opt_label__plom_data_rowRange.grid_remove()
+        opt_value__plom_data_rowRange.grid_remove()
+        name__plom_data_rowRange = "Row range"
+        info_msg__plom_data_rowRange = "Row range: Option for Excel data files only. Range of rows containing data. Should follow the pattern <rowStart:rowEnd> where rowStart < rowEnd. 1-indexed (e.g. if the first row containing data is row 5, rowStart = 5). Example: 2:101"
+        opt_label__plom_data_rowRange.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_rowRange, info_msg__plom_data_rowRange))
+        opt_value__plom_data_rowRange.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_rowRange, info_msg__plom_data_rowRange))
+        
+        def pattern__plom_data_rowRange(input_str):
+            pattern_ok = False
+            if len(input_str) > 0:
+                if (input_str[0].isdigit() and input_str[-1].isdigit() and input_str.count(":") == 1):
+                    idx1, idx2 = list(map(int, input_str.split(":")))
+                    if idx2 >= idx1:
+                        pattern_ok = True
+            return pattern_ok
+        
+        def validate__plom_data_rowRange(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            # what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            ## input must be a number or a colon (at most one colon in full string)
+            ## value must statisfy the pattern int1:int2 where int1 <= int2
+            
+            input_ok = input_str.count(":") <= 1 and input_str.replace(":", "").isdigit()
+            
+            if not input_ok:
+                input_str = opt_value__plom_data_rowRange.get()
+                
+            pattern_ok = pattern__plom_data_rowRange(input_str)
+            
+            color = 'blue' if pattern_ok else 'red'
+            
+            opt_label__plom_data_rowRange['foreground'] = color
+            opt_value__plom_data_rowRange['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'data_row_option', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_data_rowRange = root.register(validate__plom_data_rowRange)
+        opt_value__plom_data_rowRange.config(validate="all", validatecommand=(reg_val__validate__plom_data_rowRange, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        group_row += 1
+        opt_save__plom_data_hasIndices = tk.IntVar()
+        opt_label__plom_data_hasIndices = tk.Label(frame__plom_data, text="Samples have indices", anchor='w')
+        opt_label__plom_data_hasIndices.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        opt_value__plom_data_hasIndices = tk.Checkbutton(frame__plom_data, variable=opt_save__plom_data_hasIndices, onvalue = 1, offvalue = 0, anchor='w')
+        opt_value__plom_data_hasIndices.grid(row=group_row, column=1, sticky='ew')
+        name__plom_data_hasIndices = "Samples have indices"
+        info_msg__plom_data_hasIndices = "Samples have indices: Option for non-Excel data files. If checked, the first column in the file will be ignored."
+        opt_label__plom_data_hasIndices.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_hasIndices, info_msg__plom_data_hasIndices))
+        opt_value__plom_data_hasIndices.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_hasIndices, info_msg__plom_data_hasIndices))
+        
+        ## option if data file is excel
+        opt_save__plom_data_columnRange = tk.StringVar(frame__plom_data)
+        opt_label__plom_data_columnRange = tk.Label(frame__plom_data, text="Column range", anchor='w', fg='red')
+        opt_label__plom_data_columnRange.grid(row=group_row, column=0, sticky='w', padx=(0, 5), pady=(4, 2))
+        opt_value__plom_data_columnRange = tk.Entry(frame__plom_data, textvariable=opt_save__plom_data_columnRange)
+        opt_value__plom_data_columnRange.grid(row=group_row, column=1, sticky='ew')
+        opt_label__plom_data_columnRange.grid_remove()
+        opt_value__plom_data_columnRange.grid_remove()
+        name__plom_data_columnRange = "Column range"
+        info_msg__plom_data_columnRange = "Column range: Option for Excel data files only. Range of columns containing data. Should follow the pattern <colStart:colEnd> where colStart < colEnd. Case insensitive. Example: B:M"
+        opt_label__plom_data_columnRange.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_columnRange, info_msg__plom_data_columnRange))
+        opt_value__plom_data_columnRange.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_columnRange, info_msg__plom_data_columnRange))
+        
+        def pattern__plom_data_columnRange(input_str):
+            pattern_ok = False
+            if len(input_str) > 0:
+                if (input_str[0].isalpha() and input_str[-1].isalpha() and input_str.count(":") == 1):
+                    idx1, idx2 = list(map(str.upper, input_str.split(":")))
+                    if idx2 >= idx1:
+                        pattern_ok = True
+            return pattern_ok
+        
+        def validate__plom_data_columnRange(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            # what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            ## input must be a letter or a colon (at most one colon in full string)
+            ## value must statisfy the pattern int1:int2 where int1 <= int2
+            
+            input_ok = input_str.count(":") <= 1 and input_str.replace(":", "").isalpha()
+            
+            if not input_ok:
+                input_str = opt_value__plom_data_columnRange.get()
+                
+            pattern_ok = pattern__plom_data_columnRange(input_str)
+            
+            color = 'blue' if pattern_ok else 'red'
+            
+            opt_label__plom_data_columnRange['foreground'] = color
+            opt_value__plom_data_columnRange['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'data_column_option', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_data_columnRange = root.register(validate__plom_data_columnRange)
+        opt_value__plom_data_columnRange.config(validate="all", validatecommand=(reg_val__validate__plom_data_columnRange, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        group_row += 1
+        separator__plom_data_2 = ttk.Separator(frame__plom_data, orient='horizontal')
+        separator__plom_data_2.grid(row=group_row, columnspan=3, sticky="ew", pady=(5, 5))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         columnsAre_options = [" Features", " Samples"]
         opt_save__plom_data_columnsAre = tk.StringVar(frame__plom_data)
         opt_label__plom_data_columnsAre = tk.Label(frame__plom_data, text="Columns are", anchor='w')
         opt_label__plom_data_columnsAre.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
-        opt_value_plom_data_columnsAre = ttk.Combobox(frame__plom_data, values=columnsAre_options, state='readonly', textvariable=opt_save__plom_data_columnsAre)
-        opt_value_plom_data_columnsAre.current(0)
-        opt_value_plom_data_columnsAre.grid(row=group_row, column=1, sticky='ew')
+        opt_value__plom_data_columnsAre = ttk.Combobox(frame__plom_data, values=columnsAre_options, state='readonly', textvariable=opt_save__plom_data_columnsAre)
+        opt_value__plom_data_columnsAre.current(0)
+        opt_value__plom_data_columnsAre.grid(row=group_row, column=1, sticky='ew')
+        name__plom_data_columnsAre = "Columns are"
+        info_msg__plom_data_columnsAre = "Columns are: if <Features>, data is assumed to have the shape: Samples x Features. Default = <Features>"
+        opt_label__plom_data_columnsAre.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_columnsAre, info_msg__plom_data_columnsAre))
+        opt_value__plom_data_columnsAre.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_columnsAre, info_msg__plom_data_columnsAre))
         
-        group_row += 1
-        opt_save__plom_data_hasLabels = tk.IntVar()
-        opt_label__plom_data_hasLabels = tk.Label(frame__plom_data, text="Features have labels", anchor='w')
-        opt_label__plom_data_hasLabels.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
-        opt_value_plom_data_hasLabels = tk.Checkbutton(frame__plom_data, variable=opt_save__plom_data_hasLabels, onvalue = 1, offvalue = 0, anchor='w')
-        opt_value_plom_data_hasLabels.grid(row=group_row, column=1, sticky='ew')
-        
-        group_row += 1
-        opt_save__plom_data_hasIndices = tk.IntVar()
-        opt_label__plom_data_hasIndices = tk.Label(frame__plom_data, text="Samples have indices", anchor='w')
-        opt_label__plom_data_hasIndices.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
-        opt_value_plom_data_hasIndices = tk.Checkbutton(frame__plom_data, variable=opt_save__plom_data_hasIndices, onvalue = 1, offvalue = 0, anchor='w')
-        opt_value_plom_data_hasIndices.grid(row=group_row, column=1, sticky='ew')
-        
-        group_row += 1
-        opt_save__plom_data_colIgnore = tk.StringVar(frame__plom_data)
-        opt_label__plom_data_colIgnore = tk.Label(frame__plom_data, text="Column indices to ignore", anchor='w')
-        opt_label__plom_data_colIgnore.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
-        opt_value__plom_data_colIgnore = tk.Entry(frame__plom_data, textvariable=opt_save__plom_data_colIgnore)
-        opt_value__plom_data_colIgnore.grid(row=group_row, column=1, sticky='ew')
-        
-        def displayMessage__plom_data_colIndicesIgnore(error = '', color = 'black'):
-                error_label__plom_data_colIgnore['text'] = error  
-                opt_value__plom_data_colIgnore['foreground'] = color 
-        
-        def validate__plom_data_colIndicesIgnore(P, d, i, S, V):
-            input_str = P
-            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
-            idx = i # index of insertion, or -1
-            what = S # inserted character
-            reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
-            
-            pattern = r"^\s*\d+(\s*,\s*\d+)*\s*$"
-            match = re.match(pattern, input_str)
-            
-            if reason == "focusin" or reason == "focusout":
-                if len(input_str) == 0:
-                    displayMessage__plom_data_colIndicesIgnore()
-                    return True
-                if match:
-                    displayMessage__plom_data_colIndicesIgnore()
-                    return True
-                else:
-                    displayMessage__plom_data_colIndicesIgnore(error = 'Input should follow the pattern: integer1, integer2, ...', color = 'red')
-                    return False
-            
-            if why == "1": # insertion
-                if what.isdigit() or what == " " or what == ",":
-                    displayMessage__plom_data_colIndicesIgnore()
-                    return True
-                else:
-                    return False
-            
-            if why == "0":
-                displayMessage__plom_data_colIndicesIgnore()
-                return True
-        
-        reg_val__validate__plom_data_colIndicesIgnore = root.register(validate__plom_data_colIndicesIgnore)
-        opt_value__plom_data_colIgnore.config(validate="all", validatecommand=(reg_val__validate__plom_data_colIndicesIgnore, '%P', '%d', '%i', '%S', '%V'))
-        group_row += 1
-        error_label__plom_data_colIgnore = ttk.Label(frame__plom_data, foreground = 'red')  
-        error_label__plom_data_colIgnore.grid(row = group_row, column = 0, columnspan=2, sticky = 'w')
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         opt_save__plom_data_rowIgnore = tk.StringVar(frame__plom_data)
@@ -980,54 +1353,100 @@ def launch_gui():
         opt_label__plom_data_rowIgnore.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
         opt_value__plom_data_rowIgnore = tk.Entry(frame__plom_data, textvariable=opt_save__plom_data_rowIgnore)
         opt_value__plom_data_rowIgnore.grid(row=group_row, column=1, sticky='ew')
-        
-        def displayMessage__plom_data_rowIndicesIgnore(error = '', color = 'black'):
-                error_label__plom_data_rowIgnore['text'] = error  
-                opt_value__plom_data_rowIgnore['foreground'] = color 
+        name__plom_data_rowIgnore = "Row indices to ignore"
+        info_msg__plom_data_rowIgnore = "Row indices to ignore:  (optional)  Comma-separated list of integer indices or ranges <int1:int2> where int1 and int2 are inclusive.  0-indexed.\n    After the data is read and labels row / indices column are ignored, the resulting data matrix can be further filtered using this option.\n    Example: 0, 5, 20\n    Example: 0, 5:10, 20"
+        opt_label__plom_data_rowIgnore.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_rowIgnore, info_msg__plom_data_rowIgnore))
+        opt_value__plom_data_rowIgnore.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_rowIgnore, info_msg__plom_data_rowIgnore))
         
         def validate__plom_data_rowIndicesIgnore(P, d, i, S, V):
             input_str = P
             why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
-            idx = i # index of insertion, or -1
+            # idx = i # index of insertion, or -1
             what = S # inserted character
-            reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
             
-            pattern = r"^\s*\d+(\s*,\s*\d+)*\s*$"
-            match = re.match(pattern, input_str)
+            input_ok = what.isdigit() or what == " " or what == "," or what == ":" or what == ""
             
-            if reason == "focusin" or reason == "focusout":
-                if len(input_str) == 0:
-                    displayMessage__plom_data_rowIndicesIgnore()
-                    return True
-                if match:
-                    displayMessage__plom_data_rowIndicesIgnore()
-                    return True
-                else:
-                    displayMessage__plom_data_rowIndicesIgnore(error = 'Input should follow the pattern: integer1, integer2, ...', color = 'red')
-                    return False
+            if not input_ok:
+                input_str = opt_value__plom_data_rowIgnore.get()
+                
+            pattern = r"^\s*(\d+\s*(:\s*\d+)?(\s*,\s*\d+\s*(:\s*\d+)?)*\s*)?$" # regular expression that matches a comma-separated list of numbers or ranges (where a range is two numbers separated by a colon, and both numbers and ranges can include whitespace), or an empty string
+            pattern_ok = bool(re.match(pattern, input_str))
             
-            if why == "1": # insertion
-                if what.isdigit() or what == " " or what == ",":
-                    displayMessage__plom_data_rowIndicesIgnore()
-                    return True
-                else:
-                    return False
+            value = input_str
+            
+            color = 'blue' if pattern_ok else 'red'
+            if value == "":
+                color = 'black'
+            
+            opt_label__plom_data_rowIgnore['foreground'] = color
+            opt_label__plom_data_rowIgnore['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'data_rowIndicesIgnore', pattern_ok)
             
             if why == "0":
-                displayMessage__plom_data_rowIndicesIgnore()
                 return True
+            
+            return input_ok
         
         reg_val__validate__plom_data_rowIndicesIgnore = root.register(validate__plom_data_rowIndicesIgnore)
         opt_value__plom_data_rowIgnore.config(validate="all", validatecommand=(reg_val__validate__plom_data_rowIndicesIgnore, '%P', '%d', '%i', '%S', '%V'))
-        group_row += 1
-        error_label__plom_data_rowIgnore = ttk.Label(frame__plom_data, foreground = 'red')  
-        error_label__plom_data_rowIgnore.grid(row = group_row, column = 0, columnspan=2, sticky = 'w')
         
+        #---------------------------------------------------------------------------------------------------#
+        
+        group_row += 1
+        opt_save__plom_data_colIgnore = tk.StringVar(frame__plom_data)
+        opt_label__plom_data_colIgnore = tk.Label(frame__plom_data, text="Column indices to ignore", anchor='w')
+        opt_label__plom_data_colIgnore.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        opt_value__plom_data_colIgnore = tk.Entry(frame__plom_data, textvariable=opt_save__plom_data_colIgnore)
+        opt_value__plom_data_colIgnore.grid(row=group_row, column=1, sticky='ew')
+        name__plom_data_colIgnore = "Column indices to ignore"
+        info_msg__plom_data_colIgnore = "Column indices to ignore:  (optional)  Comma-separated list of integer indices or ranges <int1:int2> where int1 and int2 are inclusive.  0-indexed.\n    After the data is read and labels row / indices column are ignored, the resulting data matrix can be further filtered using this option.\n    Example: 0, 5, 20\n    Example: 0, 5:10, 20"
+        opt_label__plom_data_colIgnore.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_colIgnore, info_msg__plom_data_colIgnore))
+        opt_value__plom_data_colIgnore.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_colIgnore, info_msg__plom_data_colIgnore))
+        
+        def validate__plom_data_colIndicesIgnore(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            input_ok = what.isdigit() or what == " " or what == "," or what == ":" or what == ""
+            
+            if not input_ok:
+                input_str = opt_value__plom_data_colIgnore.get()
+                
+            pattern = r"^\s*(\d+\s*(:\s*\d+)?(\s*,\s*\d+\s*(:\s*\d+)?)*\s*)?$" # regular expression that matches a comma-separated list of numbers or ranges (where a range is two numbers separated by a colon, and both numbers and ranges can include whitespace), or an empty string
+            pattern_ok = bool(re.match(pattern, input_str))
+            value = input_str
+            
+            color = 'blue' if pattern_ok else 'red'
+            if value == "":
+                color = 'black'
+            
+            opt_label__plom_data_colIgnore['foreground'] = color
+            opt_label__plom_data_colIgnore['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'data_colIndicesIgnore', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_data_colIndicesIgnore = root.register(validate__plom_data_colIndicesIgnore)
+        opt_value__plom_data_colIgnore.config(validate="all", validatecommand=(reg_val__validate__plom_data_colIndicesIgnore, '%P', '%d', '%i', '%S', '%V'))
+        
+
+        ################################################################################
+        ################################################################################
         
         # Configure the data_group_plom_frame grid columns to ensure proper alignment and expandability
-        frame__plom_data.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
-        frame__plom_data.grid_columnconfigure(1, weight=1)  # Entry column (expandable)
-        
+        frame__plom_data.grid_columnconfigure(0, weight=0, minsize=150)  # Label column (fixed size)
+        frame__plom_data.grid_columnconfigure(1, weight=0, minsize=150)  # Entry column (expandable)
+        frame__plom_data.grid_columnconfigure(2, weight=1)
+                                              
         ################################################################################
         ################################################################################
         
@@ -1036,7 +1455,10 @@ def launch_gui():
         current_row += 1
         
         frame__plom_scaling = tk.LabelFrame(plom_settings_frame, text="Scaling", padx=10, pady=10, font=("Arial", 10, "bold"))
-        frame__plom_scaling.grid(row=current_row, column=0, columnspan=2, sticky='ew', padx=10, pady=(10, 5))
+        frame__plom_scaling.grid(row=current_row, column=0, columnspan=3, sticky='ew', padx=10, pady=(10, 5))
+        name__plom_scaling = "PLoM Scaling Settings"
+        info_msg__plom_scaling = ""
+        frame__plom_scaling.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_scaling, info_msg__plom_scaling))
         
         # Example settings for Group 2
         scaling_options = [" Yes", " No"]
@@ -1046,6 +1468,10 @@ def launch_gui():
         opt_value__plom_scaling_yesNo = ttk.Combobox(frame__plom_scaling, values=scaling_options, state='readonly', textvariable=opt_save__plom_scaling_yesNo)
         opt_value__plom_scaling_yesNo.current(0)
         opt_value__plom_scaling_yesNo.grid(row=group_row, column=1, sticky='ew')
+        name__plom_scaling_yesNo = "Scale data yes/no"
+        info_msg__plom_scaling_yesNo = "Scale data:\n    If <Yes>, training data is scaled using the method specified in the <Scaling method> option.  Default = <Yes>."
+        opt_label__plom_scaling_yesNo.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_scaling_yesNo, info_msg__plom_scaling_yesNo))
+        opt_value__plom_scaling_yesNo.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_scaling_yesNo, info_msg__plom_scaling_yesNo))
         
         group_row += 1
         scaling_methods = ["Normalization", "MinMax"]
@@ -1055,6 +1481,10 @@ def launch_gui():
         opt_value__plom_scaling_method = ttk.Combobox(frame__plom_scaling, values=scaling_methods, state='readonly', textvariable=opt_save__plom_scaling_method)
         opt_value__plom_scaling_method.current(0)
         opt_value__plom_scaling_method.grid(row=group_row, column=1, sticky='ew')
+        name__plom_scaling_method = "Scaling method"
+        info_msg__plom_scaling_method = "Scaling method:\n    If <Normalization>, data is scaled to have 0 mean and unit variance.  If <MinMax>, data is scaled to 0-1 range.  Default = <Normalization>."
+        opt_label__plom_scaling_method.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_scaling_method, info_msg__plom_scaling_method))
+        opt_value__plom_scaling_method.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_scaling_method, info_msg__plom_scaling_method))
         
         def update_scaling_method_label(event):
             selected_option = opt_save__plom_scaling_yesNo.get()
@@ -1067,8 +1497,9 @@ def launch_gui():
         
         
         # Configure the frame__plom_scaling grid columns to ensure proper alignment and expandability
-        frame__plom_scaling.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
-        frame__plom_scaling.grid_columnconfigure(1, weight=0)  # Entry column (expandable)
+        frame__plom_scaling.grid_columnconfigure(0, weight=0, minsize=150)  # Label column (fixed size)
+        frame__plom_scaling.grid_columnconfigure(1, weight=0, minsize=150)  # Entry column (expandable)
+        frame__plom_scaling.grid_columnconfigure(2, weight=1)
         
         ################################################################################
         ################################################################################
@@ -1078,7 +1509,12 @@ def launch_gui():
         current_row += 1
         
         frame__plom_pca = tk.LabelFrame(plom_settings_frame, text="PCA", padx=10, pady=10, font=("Arial", 10, "bold"))
-        frame__plom_pca.grid(row=current_row, column=0, columnspan=2, sticky='ew', padx=10, pady=(10, 5))
+        frame__plom_pca.grid(row=current_row, column=0, columnspan=3, sticky='ew', padx=10, pady=(10, 5))
+        name__plom_pca = "PCA Settings"
+        info_msg__plom_pca = ""
+        frame__plom_pca.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca, info_msg__plom_pca))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         pca_options = [" Yes", " No"]
         opt_save__plom_pca_yesNo = tk.StringVar(frame__plom_pca)
@@ -1087,6 +1523,12 @@ def launch_gui():
         opt_value__plom_pca_yesNo = ttk.Combobox(frame__plom_pca, values=pca_options, state='readonly', textvariable=opt_save__plom_pca_yesNo)
         opt_value__plom_pca_yesNo.current(0)
         opt_value__plom_pca_yesNo.grid(row=group_row, column=1, sticky='ew')
+        name__plom_pca_yesNo = "PCA yes/no"
+        info_msg__plom_pca_yesNo = "Run PCA: If <Yes>, PCA will be performed on the scaled (if Scaling = <Yes>) training data.  Default = <Yes>."
+        opt_label__plom_pca_yesNo.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_yesNo, info_msg__plom_pca_yesNo))
+        opt_value__plom_pca_yesNo.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_yesNo, info_msg__plom_pca_yesNo))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         pca_methods = ["Cumulative Energy", "Eigenvalue Cutoff", "PCA Dimension"]
@@ -1096,6 +1538,12 @@ def launch_gui():
         opt_value__plom_pca_method = ttk.Combobox(frame__plom_pca, values=pca_methods, state='readonly', textvariable=opt_save__plom_pca_method)
         opt_value__plom_pca_method.current(0)
         opt_value__plom_pca_method.grid(row=group_row, column=1, sticky='ew')
+        name__plom_pca_method = "PCA reduction method"
+        info_msg__plom_pca_method = "PCA reduction method: Method used to select the top principal components.\n    If <Cumulative Energy>, select top n PCs whose cumulative energy >= <Target Cumulative Energy>.\n    If <Eigenvalue Cutoff>, select PCs whose associated eigenvalues >= <Eigenvalue Cutoff Value>.\n    If <PCA Dimension>, select the top n PCs where n is specified in the option <Desired PCA Dimension>."
+        opt_label__plom_pca_method.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_method, info_msg__plom_pca_method))
+        opt_value__plom_pca_method.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_method, info_msg__plom_pca_method))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         pca_criteria = ["Target Cumulative Energy", "Eigenvalue Cutoff Value", "Desired PCA Dimension"]
@@ -1105,6 +1553,74 @@ def launch_gui():
         opt_label__plom_pca_criteria.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
         opt_value__plom_pca_criteria = tk.Entry(frame__plom_pca, textvariable=opt_save__plom_pca_criteria)
         opt_value__plom_pca_criteria.grid(row=group_row, column=1, sticky='ew')
+        name__plom_pca_criteria = "PCA criteria"
+        info_msg__plom_pca_criteria = "Target Cumulative Energy:  float\n    Minimum cumulative energy to be satisfied by selected top PCs.\n    Default = <0.999>"
+        opt_label__plom_pca_criteria.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_criteria, info_msg__plom_pca_criteria))
+        opt_value__plom_pca_criteria.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_criteria, info_msg__plom_pca_criteria))
+        
+        def validate__plom_pca_criteria(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            # what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            ## any input is acceptable
+            ## value must be a valid file path
+            
+            input_ok = all([x.isdigit() or x == 'e' or x == '-' or x == '.' for x in input_str])
+            
+            if not input_ok:
+                input_str = opt_value__plom_pca_criteria.get()
+                
+            pca_method = opt_value__plom_pca_method.get()
+            if pca_method == "Cumulative Energy":
+                try:
+                    value = float(input_str)
+                    pattern_ok = value > 0 and value <= 1
+                except:
+                    value = None
+                    pattern_ok = False
+                color = 'blue' if pattern_ok else 'red'
+                if value == 0.999:
+                    color = 'black'
+
+            elif pca_method == "Eigenvalue Cutoff":
+                try:
+                    value = float(input_str)
+                    pattern_ok = True
+                except:
+                    value = None
+                    pattern_ok = False
+                color = 'blue' if pattern_ok else 'red'
+                if value == 1e-3:
+                    color = 'black'
+                    
+            elif pca_method == "PCA Dimension":
+                try:
+                    value = int(input_str)
+                    pattern_ok = value > 0
+                except:
+                    value = None
+                    pattern_ok = False
+                color = 'blue' if pattern_ok else 'red'
+                if value == 2:
+                    color = 'black'
+            
+            opt_label__plom_pca_criteria['foreground'] = color
+            opt_value__plom_pca_criteria['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'pca_criteria', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_pca_criteria = root.register(validate__plom_pca_criteria)
+        opt_value__plom_pca_criteria.config(validate="all", validatecommand=(reg_val__validate__plom_pca_criteria, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         pca_scaleEvecs = [" Yes", " No"]
@@ -1114,6 +1630,12 @@ def launch_gui():
         opt_value__plom_pca_scaleEvecs = ttk.Combobox(frame__plom_pca, values=pca_scaleEvecs, state='readonly', textvariable=opt_save__plom_pca_scaleEvecs)
         opt_value__plom_pca_scaleEvecs.current(0)
         opt_value__plom_pca_scaleEvecs.grid(row=group_row, column=1, sticky='ew')
+        name__plom_pca_scaleEvecs = "Scale Eigenvectors"
+        info_msg__plom_pca_scaleEvecs = "Scale Eigenvectors: Scale PCA eigenvectors by the eigenvalues. Default = <Yes>."
+        opt_label__plom_pca_scaleEvecs.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_scaleEvecs, info_msg__plom_pca_scaleEvecs))
+        opt_value__plom_pca_scaleEvecs.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_scaleEvecs, info_msg__plom_pca_scaleEvecs))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         def update_pca_criteria_label(event):
             selected_option = opt_save__plom_pca_method.get()
@@ -1122,12 +1644,24 @@ def launch_gui():
                 if selected_option == pca_methods[0]:
                     opt_label__plom_pca_criteria.config(text=pca_criteria[0])
                     opt_save__plom_pca_criteria.set("0.999")
+                    name__plom_pca_criteria = "PCA criteria"
+                    info_msg__plom_pca_criteria = "Target Cumulative Energy:  float\n    Minimum cumulative energy to be satisfied by selected top PCs.\n    Default = <0.999>"
+                    opt_label__plom_pca_criteria.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_criteria, info_msg__plom_pca_criteria))
+                    opt_value__plom_pca_criteria.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_criteria, info_msg__plom_pca_criteria))
                 elif selected_option == pca_methods[1]:
                     opt_label__plom_pca_criteria.config(text=pca_criteria[1])
                     opt_save__plom_pca_criteria.set("1e-3")
+                    name__plom_pca_criteria = "PCA criteria"
+                    info_msg__plom_pca_criteria = "Eigenvalue Cutoff Value:  float\n    PCs are dropped if their associated eigenvalues fall below this cutoff value.\n    Default = <1e-3>. NOTE: this default value is a placeholder. The value for this option is problem-dependent and should be specified AFTER inspecting the PCA eigenvalues."
+                    opt_label__plom_pca_criteria.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_criteria, info_msg__plom_pca_criteria))
+                    opt_value__plom_pca_criteria.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_criteria, info_msg__plom_pca_criteria))
                 elif selected_option == pca_methods[2]:
                     opt_label__plom_pca_criteria.config(text=pca_criteria[2])
                     opt_save__plom_pca_criteria.set("2")
+                    name__plom_pca_criteria = "PCA criteria"
+                    info_msg__plom_pca_criteria = "Desired PCA Dimension:  int\n    Specifies the number of PCs to be retained.\n    Default = 2. NOTE: this default value is a placeholder. The value for this option is problem-dependent and should be specified AFTER inspecting the PCs."
+                    opt_label__plom_pca_criteria.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_criteria, info_msg__plom_pca_criteria))
+                    opt_value__plom_pca_criteria.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_pca_criteria, info_msg__plom_pca_criteria))
         
         opt_save__plom_pca_method_OLD = tk.StringVar(frame__plom_pca)
         opt_save__plom_pca_method_OLD.set(opt_save__plom_pca_method.get())
@@ -1147,26 +1681,270 @@ def launch_gui():
          
         opt_value__plom_pca_yesNo.bind("<<ComboboxSelected>>", update_pca_options)
         
+        #---------------------------------------------------------------------------------------------------#
         
         # Configure the frame__plom_scaling grid columns to ensure proper alignment and expandability
-        frame__plom_pca.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
-        frame__plom_pca.grid_columnconfigure(1, weight=0)  # Entry column (expandable)
-        
+        frame__plom_pca.grid_columnconfigure(0, weight=0, minsize=150)  # Label column (fixed size)
+        frame__plom_pca.grid_columnconfigure(1, weight=0, minsize=150)  # Entry column (expandable)
+        frame__plom_pca.grid_columnconfigure(2, weight=1)
         
         ################################################################################
         ################################################################################
         
-        # Add Submit button
+        # Group: PLoM DMAPS-related options
+        group_row = 0
         current_row += 1
-        button_createJob = tk.Button(plom_settings_frame, text="Create job", command=create_job)
-        button_createJob.grid(row=current_row, column=0, sticky='w', padx=10, pady=(20, 0))
         
-        button_runJob = tk.Button(plom_settings_frame, text="Run job", command=run_job_thread)
-        button_runJob.grid(row=current_row, column=1, sticky='w', padx=10, pady=(20, 0))
+        frame__plom_dmaps = tk.LabelFrame(plom_settings_frame, text="DMAPs", padx=10, pady=10, font=("Arial", 10, "bold"))
+        frame__plom_dmaps.grid(row=current_row, column=0, columnspan=3, sticky='ew', padx=10, pady=(10, 5))
+        name__plom_dmaps = "DMAPs Settings"
+        info_msg__plom_dmaps = ""
+        frame__plom_dmaps.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_dmaps, info_msg__plom_dmaps))
         
-        current_row += 1
-        job_message = tk.Label(plom_settings_frame, foreground = 'black', padx=10, pady=10)
-        job_message.grid(row=current_row, column = 0, columnspan=2, sticky = 'w')
+        #---------------------------------------------------------------------------------------------------#
+        
+        dmaps_options = ["Yes", "No"]
+        opt_save__plom_dmaps_yesNo = tk.StringVar(frame__plom_dmaps)
+        opt_label__plom_dmaps_yesNo = tk.Label(frame__plom_dmaps, text="Run DMAPs", anchor='w')
+        opt_label__plom_dmaps_yesNo.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        opt_value__plom_dmaps_yesNo = ttk.Combobox(frame__plom_dmaps, values=dmaps_options, state='readonly', textvariable=opt_save__plom_dmaps_yesNo)
+        opt_value__plom_dmaps_yesNo.current(0)
+        opt_value__plom_dmaps_yesNo.grid(row=group_row, column=1, sticky='ew')
+        name__plom_dmaps_yesNo = "Run DMAPs"
+        info_msg__plom_dmaps_yesNo = "Run DMAPs:  If <Yes>, the DMAPs algorith will be run."
+        opt_label__plom_dmaps_yesNo.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_dmaps_yesNo, info_msg__plom_dmaps_yesNo))
+        opt_value__plom_dmaps_yesNo.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_dmaps_yesNo, info_msg__plom_dmaps_yesNo))
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        group_row += 1
+        opt_save__plom_dmaps_epsilon = tk.StringVar(frame__plom_dmaps)
+        opt_save__plom_dmaps_epsilon.set('0')
+        opt_label__plom_dmaps_epsilon = tk.Label(frame__plom_dmaps, text="Epsilon", anchor='w')
+        opt_label__plom_dmaps_epsilon.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        opt_value__plom_dmaps_epsilon = tk.Entry(frame__plom_dmaps, textvariable=opt_save__plom_dmaps_epsilon)
+        opt_value__plom_dmaps_epsilon.grid(row=group_row, column=1, sticky='ew')
+        name__plom_dmaps_epsilon = "Epsilon"
+        info_msg__plom_dmaps_epsilon = "Epsilon: float (or <0> for automatic selection)\n    Scale factor for DMAPs kernel.\n    Default = 0 (automatic selection)"
+        opt_label__plom_dmaps_epsilon.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_dmaps_epsilon, info_msg__plom_dmaps_epsilon))
+        opt_value__plom_dmaps_epsilon.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_dmaps_epsilon, info_msg__plom_dmaps_epsilon))
+        
+        def validate__plom_dmaps_epsilon(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            input_ok = what.isdigit() or what == "." or what == ""
+            
+            if not input_ok:
+                input_str = opt_value__plom_dmaps_epsilon.get()
+            
+            try:
+                value = float(input_str)
+                pattern_ok = True
+            except:
+                value = None
+                pattern_ok = False
+            
+            color = 'blue' if pattern_ok else 'red'
+            if value == 0:
+                color = 'black'
+            
+            opt_label__plom_dmaps_epsilon['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'dmaps_epsilon', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_dmaps_epsilon = root.register(validate__plom_dmaps_epsilon)
+        opt_value__plom_dmaps_epsilon.config(validate="all", validatecommand=(reg_val__validate__plom_dmaps_epsilon, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        group_row += 1
+        opt_save__plom_dmaps_kappa = tk.StringVar(frame__plom_dmaps)
+        opt_save__plom_dmaps_kappa.set('1')
+        opt_label__plom_dmaps_kappa = tk.Label(frame__plom_dmaps, text="Kappa", anchor='w')
+        opt_label__plom_dmaps_kappa.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        opt_value__plom_dmaps_kappa = tk.Entry(frame__plom_dmaps, textvariable=opt_save__plom_dmaps_kappa)
+        opt_value__plom_dmaps_kappa.grid(row=group_row, column=1, sticky='ew')
+        name__plom_dmaps_kappa = "Kappa"
+        info_msg__plom_dmaps_kappa = "Kappa: int\n    Number of steps in DMAPs algorithm.\n    Default = 1"
+        opt_label__plom_dmaps_kappa.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_dmaps_kappa, info_msg__plom_dmaps_kappa))
+        opt_value__plom_dmaps_kappa.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_dmaps_kappa, info_msg__plom_dmaps_kappa))
+        
+        def validate__plom_dmaps_kappa(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            input_ok = what.isdigit() or what == ""
+            
+            if not input_ok:
+                input_str = opt_value__plom_dmaps_kappa.get()
+            
+            try:
+                value = int(input_str)
+                pattern_ok = value > 0
+            except:
+                value = None
+                pattern_ok = False
+            
+            color = 'blue' if pattern_ok else 'red'
+            if value == 1:
+                color = 'black'
+            
+            opt_label__plom_dmaps_kappa['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'dmaps_kappa', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_dmaps_kappa = root.register(validate__plom_dmaps_kappa)
+        opt_value__plom_dmaps_kappa.config(validate="all", validatecommand=(reg_val__validate__plom_dmaps_kappa, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        group_row += 1
+        opt_save__plom_dmaps_L = tk.StringVar(frame__plom_dmaps)
+        opt_save__plom_dmaps_L.set('0.1')
+        opt_label__plom_dmaps_L = tk.Label(frame__plom_dmaps, text="L (eigval drop factor)", anchor='w')
+        opt_label__plom_dmaps_L.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        opt_value__plom_dmaps_L = tk.Entry(frame__plom_dmaps, textvariable=opt_save__plom_dmaps_L)
+        opt_value__plom_dmaps_L.grid(row=group_row, column=1, sticky='ew')
+        name__plom_dmaps_L = "L (eigval drop factor)"
+        info_msg__plom_dmaps_L = "L (eigval drop factor): float\n    Drop factor in DMAPs eigenvalues for manifold dimension selection.\n    Default = 0.1"
+        opt_label__plom_dmaps_L.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_dmaps_L, info_msg__plom_dmaps_L))
+        opt_value__plom_dmaps_L.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_dmaps_L, info_msg__plom_dmaps_L))
+        
+        def validate__plom_dmaps_L(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            input_ok = what.isdigit() or what == "." or what == ""
+            
+            if not input_ok:
+                input_str = opt_value__plom_dmaps_L.get()
+            
+            try:
+                value = float(input_str)
+                pattern_ok = value > 0
+            except:
+                value = None
+                pattern_ok = False
+            
+            color = 'blue' if pattern_ok else 'red'
+            if value == 0.1:
+                color = 'black'
+            
+            opt_label__plom_dmaps_L['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'dmaps_L', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_dmaps_L = root.register(validate__plom_dmaps_L)
+        opt_value__plom_dmaps_L.config(validate="all", validatecommand=(reg_val__validate__plom_dmaps_L, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        group_row += 1
+        opt_save__plom_dmaps_firstEigvec = tk.StringVar(frame__plom_dmaps)
+        opt_label__plom_dmaps_firstEigvec = tk.Label(frame__plom_dmaps, text="Include first eigenvector", anchor='w')
+        opt_label__plom_dmaps_firstEigvec.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        opt_value__plom_dmaps_firstEigvec = ttk.Combobox(frame__plom_dmaps, values=["Yes", "No"], state='readonly', textvariable=opt_label__plom_dmaps_firstEigvec)
+        opt_value__plom_dmaps_firstEigvec.current(1)
+        opt_value__plom_dmaps_firstEigvec.grid(row=group_row, column=1, sticky='ew')
+        name__plom_dmaps_firstEigvec = "Include first eigenvector"
+        info_msg__plom_dmaps_firstEigvec = "Include first eigenvector: If <Yes>, first (constant) eigenvector will be included in DMAPs basis.\n    Default = No"
+        opt_label__plom_dmaps_firstEigvec.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_dmaps_firstEigvec, info_msg__plom_dmaps_firstEigvec))
+        opt_value__plom_dmaps_firstEigvec.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_dmaps_firstEigvec, info_msg__plom_dmaps_firstEigvec))
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        group_row += 1
+        opt_save__plom_dmaps_dim = tk.StringVar(frame__plom_dmaps)
+        opt_save__plom_dmaps_dim.set('0')
+        opt_label__plom_dmaps_dim = tk.Label(frame__plom_dmaps, text="Dimension override", anchor='w')
+        opt_label__plom_dmaps_dim.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
+        opt_value__plom_dmaps_dim = tk.Entry(frame__plom_dmaps, textvariable=opt_save__plom_dmaps_dim)
+        opt_value__plom_dmaps_dim.grid(row=group_row, column=1, sticky='ew')
+        name__plom_dmaps_dim = "Dimension override"
+        info_msg__plom_dmaps_dim = "Dimension override: int\n    Overrides manifold dimension. If 0, automatic dimension found based on the L drop factor is used.\n    Default = 0"
+        opt_label__plom_dmaps_dim.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_dmaps_dim, info_msg__plom_dmaps_dim))
+        opt_value__plom_dmaps_dim.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_dmaps_dim, info_msg__plom_dmaps_dim))
+        
+        def validate__plom_dmaps_dim(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            input_ok = what.isdigit() or what == ""
+            
+            if not input_ok:
+                input_str = opt_value__plom_dmaps_dim.get()
+            
+            try:
+                value = int(input_str)
+                pattern_ok = value > 0
+            except:
+                value = None
+                pattern_ok = False
+            
+            color = 'blue' if pattern_ok else 'red'
+            if value == 0:
+                color = 'black'
+            
+            opt_label__plom_dmaps_dim['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'dmaps_dim', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_dmaps_dim = root.register(validate__plom_dmaps_dim)
+        opt_value__plom_dmaps_dim.config(validate="all", validatecommand=(reg_val__validate__plom_dmaps_dim, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        frame__plom_dmaps.grid_columnconfigure(0, weight=0, minsize=150)  # Label column (fixed size)
+        frame__plom_dmaps.grid_columnconfigure(1, weight=0, minsize=150)  # Entry column (expandable)
+        frame__plom_dmaps.grid_columnconfigure(2, weight=1)
+        
+        ################################################################################
+        ################################################################################
+        
+        # # Add Submit button
+        # current_row += 1
+        # button_createJob = tk.Button(plom_settings_frame, text="Create job", command=create_job, state="disabled")
+        # button_createJob.grid(row=current_row, column=0, sticky='w', padx=10, pady=(20, 0))
+        
+        # button_runJob = tk.Button(plom_settings_frame, text="Run job", command=run_job_thread, state="disabled")
+        # button_runJob.grid(row=current_row, column=1, sticky='w', padx=10, pady=(20, 0))
+        
+        # current_row += 1
+        # job_message = tk.Label(plom_settings_frame, foreground = 'black', padx=10, pady=10)
+        # job_message.grid(row=current_row, column = 0, columnspan=2, sticky = 'w')
         
         
         ################################################################################
@@ -1177,74 +1955,17 @@ def launch_gui():
         ################################################################################
         ################################################################################
         
-        # Group: PLoM DMAPS-related options
-        group_row = 0
-        current_row += 1
-        
-        frame__plom_dmaps = tk.LabelFrame(plom_settings_frame2, text="DMAPs", padx=10, pady=10, font=("Arial", 10, "bold"))
-        frame__plom_dmaps.grid(row=current_row, column=0, columnspan=2, sticky='ew', padx=10, pady=(10, 5))
-        
-        dmaps_options = ["Yes", "No"]
-        opt_save__plom_dmaps_yesNo = tk.StringVar(frame__plom_dmaps)
-        opt_label__plom_dmaps_yesNo = tk.Label(frame__plom_dmaps, text="Run DMAPs", anchor='w')
-        opt_label__plom_dmaps_yesNo.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
-        opt_value__plom_dmaps_yesNo = ttk.Combobox(frame__plom_dmaps, values=dmaps_options, state='readonly', textvariable=opt_save__plom_dmaps_yesNo)
-        opt_value__plom_dmaps_yesNo.current(0)
-        opt_value__plom_dmaps_yesNo.grid(row=group_row, column=1, sticky='ew')
-        
-        group_row += 1
-        opt_save__plom_dmaps_epsilon = tk.StringVar(frame__plom_dmaps)
-        opt_save__plom_dmaps_epsilon.set('auto')
-        opt_label__plom_dmaps_epsilon = tk.Label(frame__plom_dmaps, text="Epsilon", anchor='w')
-        opt_label__plom_dmaps_epsilon.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
-        opt_value__plom_dmaps_epsilon = tk.Entry(frame__plom_dmaps, textvariable=opt_save__plom_dmaps_epsilon)
-        opt_value__plom_dmaps_epsilon.grid(row=group_row, column=1, sticky='ew')
-        
-        group_row += 1
-        opt_save__plom_dmaps_kappa = tk.StringVar(frame__plom_dmaps)
-        opt_save__plom_dmaps_kappa.set('1')
-        opt_label__plom_dmaps_kappa = tk.Label(frame__plom_dmaps, text="Kappa", anchor='w')
-        opt_label__plom_dmaps_kappa.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
-        opt_value__plom_dmaps_kappa = tk.Entry(frame__plom_dmaps, textvariable=opt_save__plom_dmaps_kappa)
-        opt_value__plom_dmaps_kappa.grid(row=group_row, column=1, sticky='ew')
-        
-        group_row += 1
-        opt_save__plom_dmaps_L = tk.StringVar(frame__plom_dmaps)
-        opt_save__plom_dmaps_L.set('0.1')
-        opt_label__plom_dmaps_L = tk.Label(frame__plom_dmaps, text="L (eigval drop factor)", anchor='w')
-        opt_label__plom_dmaps_L.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
-        opt_value__plom_dmaps_L = tk.Entry(frame__plom_dmaps, textvariable=opt_save__plom_dmaps_L)
-        opt_value__plom_dmaps_L.grid(row=group_row, column=1, sticky='ew')
-        
-        group_row += 1
-        opt_save__plom_dmaps_firstEigvec = tk.StringVar(frame__plom_dmaps)
-        opt_label__plom_dmaps_firstEigvec = tk.Label(frame__plom_dmaps, text="Include first eigenvector", anchor='w')
-        opt_label__plom_dmaps_firstEigvec.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
-        opt_value__plom_dmaps_firstEigvec = ttk.Combobox(frame__plom_dmaps, values=["Yes", "No"], state='readonly', textvariable=opt_label__plom_dmaps_firstEigvec)
-        opt_value__plom_dmaps_firstEigvec.current(1)
-        opt_value__plom_dmaps_firstEigvec.grid(row=group_row, column=1, sticky='ew')
-        
-        group_row += 1
-        opt_save__plom_dmaps_dim = tk.StringVar(frame__plom_dmaps)
-        opt_save__plom_dmaps_dim.set('0')
-        opt_label__plom_dmaps_dim = tk.Label(frame__plom_dmaps, text="Dimension override", anchor='w')
-        opt_label__plom_dmaps_dim.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
-        opt_value__plom_dmaps_dim = tk.Entry(frame__plom_dmaps, textvariable=opt_save__plom_dmaps_dim)
-        opt_value__plom_dmaps_dim.grid(row=group_row, column=1, sticky='ew')
-        
-        frame__plom_dmaps.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
-        frame__plom_dmaps.grid_columnconfigure(1, weight=1)  # Entry column (expandable)
-        
-        
-        ################################################################################
-        ################################################################################
-        
         # Group: PLoM Projection-related options
         group_row = 0
         current_row += 1
         
         frame__plom_projection = tk.LabelFrame(plom_settings_frame2, text="Projection", padx=10, pady=10, font=("Arial", 10, "bold"))
-        frame__plom_projection.grid(row=current_row, column=0, columnspan=2, sticky='ew', padx=10, pady=(10, 5))
+        frame__plom_projection.grid(row=current_row, column=0, columnspan=3, sticky='ew', padx=10, pady=(10, 5))
+        name__plom_projection = "Projection Settings"
+        info_msg__plom_projection = ""
+        frame__plom_projection.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_projection, info_msg__plom_projection))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         projection_options = ["Yes", "No"]
         opt_save__plom_projection_yesNo = tk.StringVar(frame__plom_projection)
@@ -1253,6 +1974,12 @@ def launch_gui():
         opt_value__plom_projection_yesNo = ttk.Combobox(frame__plom_projection, values=projection_options, state='readonly', textvariable=opt_save__plom_projection_yesNo)
         opt_value__plom_projection_yesNo.current(0)
         opt_value__plom_projection_yesNo.grid(row=group_row, column=1, sticky='ew')
+        name__plom_projection_yesNo = "Project data"
+        info_msg__plom_projection_yesNo = "Project data: If <Yes>, project data from <Projection source> onto <Projection target>.\n    Default = Yes."
+        opt_label__plom_projection_yesNo.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_projection_yesNo, info_msg__plom_projection_yesNo))
+        opt_value__plom_projection_yesNo.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_projection_yesNo, info_msg__plom_projection_yesNo))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         projection_source_options = ["PCA space", "Scaled space", "Original space"]
@@ -1262,6 +1989,12 @@ def launch_gui():
         opt_value__plom_projection_source = ttk.Combobox(frame__plom_projection, values=projection_source_options, state='readonly', textvariable=opt_save__plom_projection_source)
         opt_value__plom_projection_source.current(0)
         opt_value__plom_projection_source.grid(row=group_row, column=1, sticky='ew')
+        name__plom_projection_source = "Projection source"
+        info_msg__plom_projection_source = "Projection source: The space of the data to be projected.\n    Default = PCA"
+        opt_label__plom_projection_source.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_projection_source, info_msg__plom_projection_source))
+        opt_value__plom_projection_source.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_projection_source, info_msg__plom_projection_source))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         projection_target_options = ["DMAPs space", "PCA space"]
@@ -1271,10 +2004,14 @@ def launch_gui():
         opt_value__plom_projection_target = ttk.Combobox(frame__plom_projection, values=projection_target_options, state='readonly', textvariable=opt_save__plom_projection_target)
         opt_value__plom_projection_target.current(0)
         opt_value__plom_projection_target.grid(row=group_row, column=1, sticky='ew')
+        name__plom_projection_target = "Projection target"
+        info_msg__plom_projection_target = "Projection target: Space onto which data will be projected.\n    Default = DMAPs space"
+        opt_label__plom_projection_target.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_projection_target, info_msg__plom_projection_target))
+        opt_value__plom_projection_target.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_projection_target, info_msg__plom_projection_target))
         
-        frame__plom_projection.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
-        frame__plom_projection.grid_columnconfigure(1, weight=1)  # Entry column (expandable)
-        
+        frame__plom_projection.grid_columnconfigure(0, weight=0, minsize=150)  # Label column (fixed size)
+        frame__plom_projection.grid_columnconfigure(1, weight=0, minsize=150)  # Entry column (expandable)
+        frame__plom_projection.grid_columnconfigure(2, weight=1)
         
         ################################################################################
         ################################################################################
@@ -1284,7 +2021,12 @@ def launch_gui():
         current_row += 1
         
         frame__plom_sampling = tk.LabelFrame(plom_settings_frame2, text="Sampling", padx=10, pady=10, font=("Arial", 10, "bold"))
-        frame__plom_sampling.grid(row=current_row, column=0, columnspan=2, sticky='ew', padx=10, pady=(10, 5))
+        frame__plom_sampling.grid(row=current_row, column=0, columnspan=3, sticky='ew', padx=10, pady=(10, 5))
+        name__plom_sampling = "Sampling settings"
+        info_msg__plom_sampling = ""
+        frame__plom_sampling.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling, info_msg__plom_sampling))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         sampling_options = ["Yes", "No"]
         opt_save__plom_sampling_yesNo = tk.StringVar(frame__plom_sampling)
@@ -1293,6 +2035,12 @@ def launch_gui():
         opt_value__plom_sampling_yesNo = ttk.Combobox(frame__plom_sampling, values=sampling_options, state='readonly', textvariable=opt_save__plom_sampling_yesNo)
         opt_value__plom_sampling_yesNo.current(0)
         opt_value__plom_sampling_yesNo.grid(row=group_row, column=1, sticky='ew')
+        name__plom_sampling_yesNo = "Run sampling"
+        info_msg__plom_sampling_yesNo = "Run sampling:\n    If <Yes>, samples will be generated.\n    Default = Yes"
+        opt_label__plom_sampling_yesNo.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_yesNo, info_msg__plom_sampling_yesNo))
+        opt_value__plom_sampling_yesNo.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_yesNo, info_msg__plom_sampling_yesNo))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         opt_save__plom_sampling_NSamples = tk.StringVar(frame__plom_sampling)
@@ -1301,6 +2049,45 @@ def launch_gui():
         opt_label__plom_sampling_NSamples.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
         opt_value__plom_sampling_NSamples = tk.Entry(frame__plom_sampling, textvariable=opt_save__plom_sampling_NSamples)
         opt_value__plom_sampling_NSamples.grid(row=group_row, column=1, sticky='ew')
+        name__plom_sampling_NSamples = "Number of samples"
+        info_msg__plom_sampling_NSamples = "Number of samples: int\n    Number of samples to be generated. Each sample is a data set that has the same size as the training data."
+        opt_label__plom_sampling_NSamples.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_NSamples, info_msg__plom_sampling_NSamples))
+        opt_value__plom_sampling_NSamples.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_NSamples, info_msg__plom_sampling_NSamples))
+        
+        def validate__plom_sampling_NSamples(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            input_ok = what.isdigit() or what == ""
+            
+            if not input_ok:
+                input_str = opt_value__plom_sampling_NSamples.get()
+            
+            try:
+                _ = int(input_str)
+                pattern_ok = True
+            except:
+                # value = None
+                pattern_ok = False
+            
+            color = 'blue' if pattern_ok else 'red'
+            
+            opt_label__plom_sampling_NSamples['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'sampling_NSamples', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_sampling_NSamples = root.register(validate__plom_sampling_NSamples)
+        opt_value__plom_sampling_NSamples.config(validate="all", validatecommand=(reg_val__validate__plom_sampling_NSamples, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         opt_save__plom_sampling_f0 = tk.StringVar(frame__plom_sampling)
@@ -1309,6 +2096,48 @@ def launch_gui():
         opt_label__plom_sampling_f0.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
         opt_value__plom_sampling_f0 = tk.Entry(frame__plom_sampling, textvariable=opt_save__plom_sampling_f0)
         opt_value__plom_sampling_f0.grid(row=group_row, column=1, sticky='ew')
+        name__plom_sampling_f0 = "f0"
+        info_msg__plom_sampling_f0 = "f0: float\n    Sampling parameter that allows the dissipation term of the nonlinear second-order dynamical system (dissipative Hamiltonian system)\n        to be controlled (damping that kills the transient response).\n    Default = 1.0"
+        opt_label__plom_sampling_f0.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_f0, info_msg__plom_sampling_f0))
+        opt_value__plom_sampling_f0.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_f0, info_msg__plom_sampling_f0))
+        
+        def validate__plom_sampling_f0(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            input_ok = what.isdigit() or what == "." or what == ""
+            
+            if not input_ok:
+                input_str = opt_value__plom_sampling_f0.get()
+            
+            try:
+                value = float(input_str)
+                pattern_ok = value > 0
+            except:
+                value = None
+                pattern_ok = False
+            
+            color = 'blue' if pattern_ok else 'red'
+            
+            if value == 1:
+                color = 'black'
+            
+            opt_label__plom_sampling_f0['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'sampling_f0', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_sampling_f0 = root.register(validate__plom_sampling_f0)
+        opt_value__plom_sampling_f0.config(validate="all", validatecommand=(reg_val__validate__plom_sampling_f0, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         opt_save__plom_sampling_dr = tk.StringVar(frame__plom_sampling)
@@ -1317,14 +2146,98 @@ def launch_gui():
         opt_label__plom_sampling_dr.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
         opt_value__plom_sampling_dr = tk.Entry(frame__plom_sampling, textvariable=opt_save__plom_sampling_dr)
         opt_value__plom_sampling_dr.grid(row=group_row, column=1, sticky='ew')
+        name__plom_sampling_dr = "dr"
+        info_msg__plom_sampling_dr = "dr: float\n    Sampling step of the continuous index parameter used in the integration scheme.\n    Default = 0.1"
+        opt_label__plom_sampling_dr.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_dr, info_msg__plom_sampling_dr))
+        opt_value__plom_sampling_dr.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_dr, info_msg__plom_sampling_dr))
+        
+        def validate__plom_sampling_dr(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            input_ok = what.isdigit() or what == "." or what == ""
+            
+            if not input_ok:
+                input_str = opt_value__plom_sampling_dr.get()
+            
+            try:
+                value = float(input_str)
+                pattern_ok = value > 0
+            except:
+                value = None
+                pattern_ok = False
+            
+            color = 'blue' if pattern_ok else 'red'
+            
+            if value == 0.1:
+                color = 'black'
+            
+            opt_label__plom_sampling_dr['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'sampling_dr', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_sampling_dr = root.register(validate__plom_sampling_dr)
+        opt_value__plom_sampling_dr.config(validate="all", validatecommand=(reg_val__validate__plom_sampling_dr, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         opt_save__plom_sampling_itoSteps = tk.StringVar(frame__plom_sampling)
-        opt_save__plom_sampling_itoSteps.set('auto')
+        opt_save__plom_sampling_itoSteps.set('0')
         opt_label__plom_sampling_itoSteps = tk.Label(frame__plom_sampling, text="Num. of Ito steps", anchor='w')
         opt_label__plom_sampling_itoSteps.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
         opt_value__plom_sampling_itoSteps = tk.Entry(frame__plom_sampling, textvariable=opt_save__plom_sampling_itoSteps)
         opt_value__plom_sampling_itoSteps.grid(row=group_row, column=1, sticky='ew')
+        name__plom_sampling_itoSteps = "Num. of Ito steps"
+        info_msg__plom_sampling_itoSteps = "Num. of Ito steps: int (or 0 for automatic selection)\n    Number of steps that the Ito stochastic differential equation is evolved for.\n    Default = 0 (number of steps is calculated internally)"
+        opt_label__plom_sampling_itoSteps.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_itoSteps, info_msg__plom_sampling_itoSteps))
+        opt_value__plom_sampling_itoSteps.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_itoSteps, info_msg__plom_sampling_itoSteps))
+        
+        def validate__plom_sampling_itoSteps(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            input_ok = what.isdigit() or what == ""
+            
+            if not input_ok:
+                input_str = opt_value__plom_sampling_itoSteps.get()
+            
+            try:
+                value = int(input_str)
+                pattern_ok = True
+            except:
+                value = None
+                pattern_ok = False
+            
+            color = 'blue' if pattern_ok else 'red'
+            
+            if value == 0:
+                color = 'black'
+            
+            opt_label__plom_sampling_itoSteps['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'sampling_itoSteps', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_sampling_itoSteps = root.register(validate__plom_sampling_itoSteps)
+        opt_value__plom_sampling_itoSteps.config(validate="all", validatecommand=(reg_val__validate__plom_sampling_itoSteps, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         sampling_potMethod_options = ["1", "2", "3", "4", "5", "6", "7"]
@@ -1334,6 +2247,12 @@ def launch_gui():
         opt_value__plom_sampling_potMethod = ttk.Combobox(frame__plom_sampling, values=sampling_potMethod_options, state='readonly', textvariable=opt_save__plom_sampling_potMethod)
         opt_value__plom_sampling_potMethod.current(2)
         opt_value__plom_sampling_potMethod.grid(row=group_row, column=1, sticky='ew')
+        name__plom_sampling_potMethod = "Potential method"
+        info_msg__plom_sampling_potMethod = "Potential method:\n    Internal method used to calculate the potential.\n    Default = 3"
+        opt_label__plom_sampling_potMethod.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_potMethod, info_msg__plom_sampling_potMethod))
+        opt_value__plom_sampling_potMethod.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_potMethod, info_msg__plom_sampling_potMethod))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         opt_save__plom_sampling_kdeBW = tk.StringVar(frame__plom_sampling)
@@ -1342,6 +2261,48 @@ def launch_gui():
         opt_label__plom_sampling_kdeBW.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
         opt_value__plom_sampling_kdeBW = tk.Entry(frame__plom_sampling, textvariable=opt_save__plom_sampling_kdeBW)
         opt_value__plom_sampling_kdeBW.grid(row=group_row, column=1, sticky='ew')
+        name__plom_sampling_kdeBW = "KDE bandwidth factor"
+        info_msg__plom_sampling_kdeBW = "KDE bandwidth factor: float\n    Factor multiplying the KDE bandwidth.\n    Default = 1.0"
+        opt_label__plom_sampling_kdeBW.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_kdeBW, info_msg__plom_sampling_kdeBW))
+        opt_value__plom_sampling_kdeBW.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_kdeBW, info_msg__plom_sampling_kdeBW))
+        
+        def validate__plom_sampling_kdeBW(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            input_ok = what.isdigit() or what == "." or what == ""
+            
+            if not input_ok:
+                input_str = opt_value__plom_sampling_kdeBW.get()
+            
+            try:
+                value = float(input_str)
+                pattern_ok = value > 0
+            except:
+                value = None
+                pattern_ok = False
+            
+            color = 'blue' if pattern_ok else 'red'
+            
+            if value == 1:
+                color = 'black'
+            
+            opt_label__plom_sampling_kdeBW['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'sampling_kdeBW', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_sampling_kdeBW = root.register(validate__plom_sampling_kdeBW)
+        opt_value__plom_sampling_kdeBW.config(validate="all", validatecommand=(reg_val__validate__plom_sampling_kdeBW, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         sampling_saveSamples_options = ["Yes", "No"]
@@ -1351,6 +2312,12 @@ def launch_gui():
         opt_value__plom_sampling_saveSamples = ttk.Combobox(frame__plom_sampling, values=sampling_saveSamples_options, state='readonly', textvariable=opt_save__plom_sampling_saveSamples)
         opt_value__plom_sampling_saveSamples.current(0)
         opt_value__plom_sampling_saveSamples.grid(row=group_row, column=1, sticky='ew')
+        name__plom_sampling_saveSamples = "Save samples"
+        info_msg__plom_sampling_saveSamples = "Save samples:\n    If <Yes>, generated samples will be saved to a separate file.\n    Default = Yes"
+        opt_label__plom_sampling_saveSamples.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_saveSamples, info_msg__plom_sampling_saveSamples))
+        opt_value__plom_sampling_saveSamples.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_saveSamples, info_msg__plom_sampling_saveSamples))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         sampling_samplesFType_options = ["txt", "npy"]
@@ -1360,6 +2327,12 @@ def launch_gui():
         opt_value__plom_sampling_samplesFType = ttk.Combobox(frame__plom_sampling, values=sampling_samplesFType_options, state='readonly', textvariable=opt_save__plom_sampling_samplesFType)
         opt_value__plom_sampling_samplesFType.current(0)
         opt_value__plom_sampling_samplesFType.grid(row=group_row, column=1, sticky='ew')
+        name__plom_sampling_samplesFType = "Samples filetype"
+        info_msg__plom_sampling_samplesFType = "Samples filetype:\n    File type for saved samples.\n    Default = txt"
+        opt_label__plom_sampling_samplesFType.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_samplesFType, info_msg__plom_sampling_samplesFType))
+        opt_value__plom_sampling_samplesFType.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_samplesFType, info_msg__plom_sampling_samplesFType))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         sampling_parallel_options = ["Yes", "No"]
@@ -1369,6 +2342,12 @@ def launch_gui():
         opt_value__plom_sampling_parallel = ttk.Combobox(frame__plom_sampling, values=sampling_parallel_options, state='readonly', textvariable=opt_save__plom_sampling_parallel)
         opt_value__plom_sampling_parallel.current(1)
         opt_value__plom_sampling_parallel.grid(row=group_row, column=1, sticky='ew')
+        name__plom_sampling_parallel = "Parallel sampling"
+        info_msg__plom_sampling_parallel = "Parallel sampling:\n    If <Yes>, sampling will run on multiple cores in parallel.\n    Default = No"
+        opt_label__plom_sampling_parallel.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_parallel, info_msg__plom_sampling_parallel))
+        opt_value__plom_sampling_parallel.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_parallel, info_msg__plom_sampling_parallel))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         opt_save__plom_sampling_njobs = tk.StringVar(frame__plom_sampling)
@@ -1377,9 +2356,52 @@ def launch_gui():
         opt_label__plom_sampling_njobs.grid(row=group_row, column=0, sticky='w', padx=(0, 5))
         opt_value__plom_sampling_njobs = tk.Entry(frame__plom_sampling, textvariable=opt_save__plom_sampling_njobs)
         opt_value__plom_sampling_njobs.grid(row=group_row, column=1, sticky='ew')
+        name__plom_sampling_njobs = "Number of jobs"
+        info_msg__plom_sampling_njobs = "Number of jobs: int or -1\n    Number of cores used if Parallel sampling is True.\n    Default = -1 (use all available cores)"
+        opt_label__plom_sampling_njobs.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_njobs, info_msg__plom_sampling_njobs))
+        opt_value__plom_sampling_njobs.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_sampling_njobs, info_msg__plom_sampling_njobs))
         
-        frame__plom_sampling.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
-        frame__plom_sampling.grid_columnconfigure(1, weight=1)  # Entry column (expandable)
+        def validate__plom_sampling_njobs(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            input_ok = what.isdigit() or what == "-" or what == ""
+            
+            if not input_ok:
+                input_str = opt_value__plom_sampling_njobs.get()
+            
+            try:
+                value = int(input_str)
+                pattern_ok = value > 0 or value == -1
+            except:
+                value = None
+                pattern_ok = False
+            
+            color = 'blue' if pattern_ok else 'red'
+            
+            if value == -1:
+                color = 'black'
+            
+            opt_label__plom_sampling_njobs['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'sampling_njobs', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_sampling_njobs = root.register(validate__plom_sampling_njobs)
+        opt_value__plom_sampling_njobs.config(validate="all", validatecommand=(reg_val__validate__plom_sampling_njobs, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        frame__plom_sampling.grid_columnconfigure(0, weight=0, minsize=150)  # Label column (fixed size)
+        frame__plom_sampling.grid_columnconfigure(1, weight=0, minsize=150)  # Entry column (expandable)
+        frame__plom_sampling.grid_columnconfigure(2, weight=1)
         
         ################################################################################
         ################################################################################
@@ -1389,7 +2411,12 @@ def launch_gui():
         current_row += 1
         
         frame__plom_results = tk.LabelFrame(plom_settings_frame2, text="Results", padx=10, pady=10, font=("Arial", 10, "bold"))
-        frame__plom_results.grid(row=current_row, column=0, columnspan=2, sticky='ew', padx=10, pady=(10, 5))
+        frame__plom_results.grid(row=current_row, column=0, columnspan=3, sticky='ew', padx=10, pady=(10, 5))
+        name__plom_results = ""
+        info_msg__plom_results = ""
+        frame__plom_results.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_results, info_msg__plom_results))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         results_save_options = ["Yes", "No"]
@@ -1399,6 +2426,12 @@ def launch_gui():
         opt_value__plom_results_dict = ttk.Combobox(frame__plom_results, values=results_save_options, state='readonly', textvariable=opt_save__plom_results_dict)
         opt_value__plom_results_dict.current(0)
         opt_value__plom_results_dict.grid(row=group_row, column=1, sticky='ew')
+        name__plom_results_dict = ""
+        info_msg__plom_results_dict = ""
+        opt_label__plom_results_dict.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_results_dict, info_msg__plom_results_dict))
+        opt_value__plom_results_dict.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_results_dict, info_msg__plom_results_dict))
+        
+        #---------------------------------------------------------------------------------------------------#
         
         group_row += 1
         opt_save__plom_results_plots = tk.StringVar(frame__plom_results)
@@ -1407,38 +2440,159 @@ def launch_gui():
         opt_value__plom_results_plots = ttk.Combobox(frame__plom_results, values=results_save_options, state='readonly', textvariable=opt_save__plom_results_plots)
         opt_value__plom_results_plots.current(0)
         opt_value__plom_results_plots.grid(row=group_row, column=1, sticky='ew')
+        name__plom_results_plots = ""
+        info_msg__plom_results_plots = ""
+        opt_label__plom_results_plots.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_results_plots, info_msg__plom_results_plots))
+        opt_value__plom_results_plots.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_results_plots, info_msg__plom_results_plots))
         
+        #---------------------------------------------------------------------------------------------------#
         
-        frame__plom_results.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
-        frame__plom_results.grid_columnconfigure(1, weight=1)  # Entry column (expandable)
+        frame__plom_results.grid_columnconfigure(0, weight=0, minsize=150)  # Label column (fixed size)
+        frame__plom_results.grid_columnconfigure(1, weight=0, minsize=150)  # Entry column (expandable)
+        frame__plom_results.grid_columnconfigure(2, weight=1)
         
         ################################################################################
         ################################################################################
         
-        # Configure the left frame grid columns to ensure proper alignment and expandability
-        plom_settings_frame.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
-        plom_settings_frame.grid_columnconfigure(1, weight=1)  # Entry column (expandable)
+        # Group: PLoM job-related options
+        current_row += 1
+        frame__plom_job = tk.LabelFrame(plom_settings_frame2, text="Job", padx=10, pady=10, font=("Arial", 10, "bold"))
+        frame__plom_job.grid(row=current_row, column=0, columnspan=3, sticky='ew', padx=10, pady=(10, 5))
+        name__plom_job = "PLoM Job Settings"
+        info_msg__plom_job = ""
+        frame__plom_job.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_job, info_msg__plom_job))
         
-        plom_settings_frame2.grid_columnconfigure(0, weight=0)  # Label column (fixed size)
-        plom_settings_frame2.grid_columnconfigure(1, weight=1)  # Entry column (expandable)
+        opt_save__plom_job_name = tk.StringVar(frame__plom_job)
+        opt_save__plom_job_name.set(f'job_{datetimeStr()}')
+        opt_label__plom_job_name = tk.Label(frame__plom_job, text="Job name", anchor='w', fg='blue')
+        opt_label__plom_job_name.grid(row=0, column=0, sticky='w', padx=(0, 5))
+        opt_value__plom_job_name = tk.Entry(frame__plom_job, textvariable=opt_save__plom_job_name)
+        opt_value__plom_job_name.grid(row=0, column=1, sticky='ew')
+        name__plom_job_name = "PLoM Job Name"
+        info_msg__plom_job_name = "Job name: A directory with this name will be created under <Job path>. All run related files will be saved here."
+        opt_label__plom_job_name.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_job_name, info_msg__plom_job_name))
+        opt_value__plom_job_name.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_job_name, info_msg__plom_job_name))
+        
+        def validate__plom_job_name(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            # what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            ## any input is acceptable as long as it does not contain characters prohibited in directory names by the OS
+            ## value must be a valid folder name, i.e. contains characters other than ' ' and '.'
+            
+            invalid_chars = r'\/:*?<>|"'
+            input_ok = not(any(char in invalid_chars for char in input_str))
+            
+            if not input_ok:
+                input_str = opt_value__plom_job_name.get()
+            
+            pattern_ok = input_str.replace(" ", "").replace(".", "") != ""
+            
+            color = 'blue' if pattern_ok else 'red'
+            
+            opt_label__plom_job_name['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'job_name', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+        
+        reg_val__validate__plom_job_name = root.register(validate__plom_job_name)
+        opt_value__plom_job_name.config(validate="all", validatecommand=(reg_val__validate__plom_job_name, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        opt_save__plom_job_path = tk.StringVar(frame__plom_job)
+        opt_save__plom_job_path.set(os.path.expanduser("~"))
+        opt_label__plom_job_path = tk.Label(frame__plom_job, text="Job path", anchor='w', fg='blue')
+        opt_label__plom_job_path.grid(row=1, column=0, sticky='w', padx=(0, 5))
+        opt_value__plom_job_path = tk.Entry(frame__plom_job, textvariable=opt_save__plom_job_path)
+        opt_value__plom_job_path.grid(row=1, column=1, sticky='ew')
+        name__plom_job_path = "PLoM Job Path"
+        info_msg__plom_job_path = "Job path: Root directoy under which a directory named <Job name> will be created. Must be a valid absolute path."
+        opt_label__plom_job_path.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_job_path, info_msg__plom_job_path))
+        opt_value__plom_job_path.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_job_path, info_msg__plom_job_path))
+        
+        browse_button__plom_job_path = tk.Button(frame__plom_job, text="Browse", command=lambda: browse_folder(opt_value__plom_job_path))
+        browse_button__plom_job_path.grid(row=1, column=2, sticky='ew', padx=(5, 0))
+        browse_button__plom_job_path.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event))
+        
+        def validate__plom_job_path(P, d, i, S, V):
+            input_str = P
+            why = d # action code: 0 for deletion, 1 for insertion, or -1 for focus in, focus out, or a change to the textvariable
+            # idx = i # index of insertion, or -1
+            # what = S # inserted character
+            # reason = V # reason for this callback: one of 'focusin', 'focusout', 'key', or 'forced' if the textvariable was changed
+            
+            ## any input is acceptable as long as it does not contain characters prohibited in directory names by the OS
+            ## value must be an absolute path
+            
+            invalid_chars = r'?<>|"'
+            input_ok = not(any(char in invalid_chars for char in input_str))
+            
+            if not input_ok:
+                input_str = opt_value__plom_job_path.get()
+            
+            pattern_ok = os.path.isabs(input_str)
+            
+            color = 'blue' if pattern_ok else 'red'
+            
+            opt_label__plom_job_path['foreground'] = color
+            opt_value__plom_job_path['foreground'] = color
+            
+            validate_run_ready(plom_settings_run_ready, 'job_path', pattern_ok)
+            
+            if why == "0":
+                return True
+            
+            return input_ok
+                
+        reg_val__validate__plom_job_path = root.register(validate__plom_job_path)
+        opt_value__plom_job_path.config(validate="all", validatecommand=(reg_val__validate__plom_job_path, '%P', '%d', '%i', '%S', '%V'))
+        
+        #---------------------------------------------------------------------------------------------------#
+        
+        # Configure the frame__plom_job grid columns to ensure proper alignment and expandability
+        frame__plom_job.grid_columnconfigure(0, weight=0, minsize=60)  # Label column (fixed size)
+        frame__plom_job.grid_columnconfigure(1, weight=0, minsize=240)  # Entry column (expandable)
+        frame__plom_job.grid_columnconfigure(2, weight=1)  # Button column (fixed size)
+        
+        ################################################################################
+        ################################################################################
+        
+        # Add Submit button
+        current_row += 1
+        button_createJob = tk.Button(plom_settings_frame2, text="Create job", command=create_job, state="disabled")
+        button_createJob.grid(row=current_row, column=0, sticky='w', padx=10, pady=(20, 0))
+        
+        button_runJob = tk.Button(plom_settings_frame2, text="Run job", command=run_job_thread, state="disabled")
+        button_runJob.grid(row=current_row, column=1, sticky='w', padx=10, pady=(20, 0))
+        
+        ################################################################################
+        ################################################################################
         
         # Add a label for the log frame
-        log_label = tk.Label(log_frame, text="Log", font=("Arial", 12, "bold"))
+        log_label = tk.Label(plom_log_frame, text="Log", font=("Arial", 12, "bold"))
         log_label.pack(side=tk.TOP, anchor='w', pady=(5, 0))  # Add top padding
         
         ################################################################################
         ################################################################################
         
         # Create the 'Clear Log' button and pack it above the log box
-        clear_button = tk.Button(log_frame, text="Clear Log", command=clear_log)
+        clear_button = tk.Button(plom_log_frame, text="Clear Log", command=clear_log)
         clear_button.pack(side=tk.TOP, anchor='w', pady=5)  # Adjust padding as needed
         
         # Add a text widget for the log with padding to control its start position
-        log_text = tk.Text(log_frame, wrap='word', bg='white')
-        log_text.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(0, 5))  # Add right padding
+        plom_log_text = tk.Text(plom_log_frame, wrap='word', bg='white')
+        plom_log_text.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(0, 5))  # Add right padding
         
         original_stdout = sys.stdout
-        sys.stdout = TextRedirector(log_text)
+        sys.stdout = TextRedirector(plom_log_text)
         # sys.stdout = original_stdout
     
     
