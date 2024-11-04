@@ -3,14 +3,14 @@ matplotlib.use('Agg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import tkinter as tk
-from tkinter import Menu, messagebox, filedialog, StringVar
+from tkinter import Menu, messagebox, filedialog
 from tkinter import ttk
 import re
 import numpy as np
 import pandas as pd
 from datetime import datetime
 import os
-from plom import parse_input, initialize, run, save_dict, load_dict
+from plom import parse_input, initialize, run, save_dict, load_dict, save_summary
 import sys
 import threading
 from scipy.stats import gaussian_kde
@@ -18,6 +18,14 @@ from scipy.stats import gaussian_kde
 HOME_DIR = os.path.expanduser("~")
 PLOM_DIR = os.path.join(HOME_DIR, '.plom')
 ICON_PATH = os.path.join(PLOM_DIR, 'plom.ico' if os.name=='nt' else 'plom.png')
+
+
+# plt.rcParams['axes.titlesize'] = 16         # Title font size
+# plt.rcParams['axes.labelsize'] = 14         # Axis labels font size
+# plt.rcParams['xtick.labelsize'] = 12        # X-axis ticks font size
+# plt.rcParams['ytick.labelsize'] = 12        # Y-axis ticks font size
+# plt.rcParams['legend.fontsize'] = 12        # Legends font size
+# plt.rcParams['font.size'] = 12              # General font size
 
 def launch_gui():
     
@@ -48,11 +56,11 @@ def launch_gui():
     def click_event(event):
         x,y = root.winfo_pointerxy()                   # get the mouse position on screen
         widget = root.winfo_containing(x,y)            # identify the widget at this location
-        tab = 0
-        if tab_control.select() == '.!frame.!notebook.!frame':
-            tab = 1
-        elif tab_control.select() == '.!frame.!notebook.!frame2':
-            tab = 2
+        # tab = 0
+        # if tab_control.select() == '.!frame.!notebook.!frame':
+        #     tab = 1
+        # elif tab_control.select() == '.!frame.!notebook.!frame2':
+        #     tab = 2
         # print(widget)
         widget.focus()
         # displayMessage__plom_statusMessage()
@@ -71,6 +79,7 @@ def launch_gui():
         
         # Close the application
         sys.stdout = original_stdout
+        plt.close('all')
         root.destroy()
     
     # Function to bind Ctrl+W to the close event
@@ -153,62 +162,59 @@ def launch_gui():
     
     
     def get_plom_gui_input():
-        job_name               = opt_save__plom_job_name.get()
-        job_path               = opt_save__plom_job_path.get()
         
-        # diagnostics_criteria   = opt_save__plom_diag_criteria.get()
-        # diagnostics_inputType  = opt_save__plom_diag_inputType.get()
-        # diagnostics_inputValue = opt_save__plom_diag_inputValue.get()
+        inputs = dict()
         
-        data_path              = opt_save__plom_data_path.get()
-        data_delimiter         = opt_save__plom_data_delimiter.get()
-        data_sheetName         = opt_save__plom_data_sheetName.get()
-        data_hasLabels         = opt_save__plom_data_hasLabels.get()
-        data_rowRange          = opt_save__plom_data_rowRange.get()
-        data_hasIndices        = opt_save__plom_data_hasIndices.get()
-        data_columnRange       = opt_save__plom_data_columnRange.get()
-        data_columnsAre        = opt_save__plom_data_columnsAre.get()
-        data_colIgnore         = opt_save__plom_data_colIgnore.get()
-        data_rowIgnore         = opt_save__plom_data_rowIgnore.get()
+        inputs['data_path']              = opt_save__plom_data_path.get()
+        inputs['data_delimiter']         = opt_save__plom_data_delimiter.get()
+        inputs['data_sheetName']         = opt_save__plom_data_sheetName.get()
+        inputs['data_hasLabels']         = opt_save__plom_data_hasLabels.get()
+        inputs['data_rowRange']          = opt_save__plom_data_rowRange.get()
+        inputs['data_hasIndices']        = opt_save__plom_data_hasIndices.get()
+        inputs['data_columnRange']       = opt_save__plom_data_columnRange.get()
+        inputs['data_columnsAre']        = opt_save__plom_data_columnsAre.get()
+        inputs['data_rowIgnore']         = opt_save__plom_data_rowIgnore.get()
+        inputs['data_colIgnore']         = opt_save__plom_data_colIgnore.get()
         
-        scaling_yesNo          = opt_save__plom_scaling_yesNo.get()
-        scaling_method         = opt_save__plom_scaling_method.get()
-        pca_yesNo              = opt_save__plom_pca_yesNo.get()
-        pca_method             = opt_save__plom_pca_method.get()
-        pca_criteria           = opt_save__plom_pca_criteria.get()
-        pca_scaleEvecs         = opt_save__plom_pca_scaleEvecs.get()
-        dmaps_yesNo            = opt_save__plom_dmaps_yesNo.get()
-        dmaps_epsilon          = opt_save__plom_dmaps_epsilon.get()
-        dmaps_kappa            = opt_save__plom_dmaps_kappa.get()
-        dmaps_L                = opt_save__plom_dmaps_L.get()
-        dmaps_firstEigvec      = opt_save__plom_dmaps_firstEigvec.get()
-        dmaps_dim              = opt_save__plom_dmaps_dim.get()
-        projection_yesNo       = opt_save__plom_projection_yesNo.get()
-        projection_source      = opt_save__plom_projection_source.get()
-        projection_target      = opt_save__plom_projection_target.get()
-        sampling_yesNo         = opt_save__plom_sampling_yesNo.get()
-        sampling_NSamples      = opt_save__plom_sampling_NSamples.get()
-        sampling_f0            = opt_save__plom_sampling_f0.get()
-        sampling_dr            = opt_save__plom_sampling_dr.get()
-        sampling_itoSteps      = opt_save__plom_sampling_itoSteps.get()
-        sampling_potMethod     = opt_save__plom_sampling_potMethod.get()
-        sampling_kdeBW         = opt_save__plom_sampling_kdeBW.get()
-        sampling_saveSamples   = opt_save__plom_sampling_saveSamples.get()
-        sampling_samplesFType  = opt_save__plom_sampling_samplesFType.get()
-        sampling_parallel      = opt_save__plom_sampling_parallel.get()
-        sampling_njobs         = opt_save__plom_sampling_njobs.get()
-        results_dict           = opt_save__plom_results_dict.get()
-        results_plots          = opt_save__plom_results_plots.get()
+        inputs['scaling_yesNo']          = opt_save__plom_scaling_yesNo.get()
+        inputs['scaling_method']         = opt_save__plom_scaling_method.get()
         
-        return [job_name, job_path, data_path, data_columnsAre, data_hasLabels, 
-                data_hasIndices, data_sheetName, data_colIgnore, data_rowIgnore, scaling_yesNo, 
-                scaling_method, pca_yesNo, pca_method, pca_criteria, pca_scaleEvecs,
-                dmaps_yesNo, dmaps_epsilon, dmaps_kappa, dmaps_L, dmaps_firstEigvec, 
-                dmaps_dim, projection_yesNo, projection_source, projection_target, 
-                sampling_yesNo, sampling_NSamples, sampling_f0, sampling_dr, 
-                sampling_itoSteps, sampling_potMethod, sampling_kdeBW, 
-                sampling_saveSamples, sampling_samplesFType, sampling_parallel, 
-                sampling_njobs, results_dict, results_plots]
+        inputs['pca_yesNo']              = opt_save__plom_pca_yesNo.get()
+        inputs['pca_method']             = opt_save__plom_pca_method.get()
+        inputs['pca_criteria']           = opt_save__plom_pca_criteria.get()
+        inputs['pca_scaleEvecs']         = opt_save__plom_pca_scaleEvecs.get()
+        
+        inputs['dmaps_yesNo']            = opt_save__plom_dmaps_yesNo.get()
+        inputs['dmaps_epsilon']          = opt_save__plom_dmaps_epsilon.get()
+        inputs['dmaps_kappa']            = opt_save__plom_dmaps_kappa.get()
+        inputs['dmaps_L']                = opt_save__plom_dmaps_L.get()
+        inputs['dmaps_firstEigvec']      = opt_save__plom_dmaps_firstEigvec.get()
+        inputs['dmaps_dim']              = opt_save__plom_dmaps_dim.get()
+        
+        inputs['projection_yesNo']       = opt_save__plom_projection_yesNo.get()
+        inputs['projection_source']      = opt_save__plom_projection_source.get()
+        inputs['projection_target']      = opt_save__plom_projection_target.get()
+        
+        inputs['sampling_yesNo']         = opt_save__plom_sampling_yesNo.get()
+        inputs['sampling_NSamples']      = opt_save__plom_sampling_NSamples.get()
+        inputs['sampling_f0']            = opt_save__plom_sampling_f0.get()
+        inputs['sampling_dr']            = opt_save__plom_sampling_dr.get()
+        inputs['sampling_itoSteps']      = opt_save__plom_sampling_itoSteps.get()
+        inputs['sampling_potMethod']     = opt_save__plom_sampling_potMethod.get()
+        inputs['sampling_kdeBW']         = opt_save__plom_sampling_kdeBW.get()
+        inputs['sampling_saveSamples']   = opt_save__plom_sampling_saveSamples.get()
+        inputs['sampling_samplesFType']  = opt_save__plom_sampling_samplesFType.get()
+        inputs['sampling_parallel']      = opt_save__plom_sampling_parallel.get()
+        inputs['sampling_njobs']         = opt_save__plom_sampling_njobs.get()
+        
+        inputs['results_dict']           = opt_save__plom_results_dict.get()
+        inputs['results_plots']          = opt_save__plom_results_plots.get()
+        
+        inputs['job_name']               = opt_save__plom_job_name.get()
+        inputs['job_path']               = opt_save__plom_job_path.get()
+        
+        return inputs
+    
     
     def save_session(file_path=None):
         plom_gui_input = get_plom_gui_input()
@@ -222,134 +228,187 @@ def launch_gui():
         
         if file_path:
             with open(file_path, 'w') as f:
-                for line in plom_gui_input:
-                    f.write(f"{line}\n")
+                for key, value in plom_gui_input.items():
+                    # f.write(f"{key}\t\t{value}\n")
+                    f.write(f"{key.ljust(25)}: {value}\n")
                 print(f"Session saved to {file_path}\n")
     
-    def load_session():
-        file_path = filedialog.askopenfilename(
-            title="Select session file", 
-            filetypes=(("Text files", "*.txt"), ("All files", "*.*"))
-        )
+    
+    def load_session(file_path=None):
+        if file_path is None:
+            file_path = filedialog.askopenfilename(
+                title="Select session file", 
+                filetypes=(("Text files", "*.txt"), ("All files", "*.*"))
+            )
         if file_path:
+            inputs = dict()
             try:
                 with open(file_path, 'r') as f:
-                    [job_name, job_path, diagnostics_criteria, diagnostics_inputType, 
-                     diagnostics_inputValue, data_path, data_columnsAre, data_hasLabels, 
-                     data_hasIndices, data_sheetName, data_colIgnore, data_rowIgnore, scaling_yesNo, 
-                     scaling_method, pca_yesNo, pca_method, pca_criteria, pca_scaleEvecs,
-                     dmaps_yesNo, dmaps_epsilon, dmaps_kappa, dmaps_L, dmaps_firstEigvec, 
-                     dmaps_dim, projection_yesNo, projection_source, projection_target, 
-                     sampling_yesNo, sampling_NSamples, sampling_f0, sampling_dr, 
-                     sampling_itoSteps, sampling_potMethod, sampling_kdeBW, 
-                     sampling_saveSamples, sampling_samplesFType, sampling_parallel, 
-                     sampling_njobs, results_dict, results_plots] = f.read().splitlines()
-            
-                    opt_save__plom_job_name.set(job_name)
-                    opt_save__plom_job_path.set(job_path)
-                    # opt_save__plom_diag_criteria.set(diagnostics_criteria)
-                    # opt_save__plom_diag_inputType.set(diagnostics_inputType)
-                    # opt_save__plom_diag_inputValue.set(diagnostics_inputValue)
-                    opt_save__plom_data_path.set(data_path)
-                    opt_save__plom_data_columnsAre.set(data_columnsAre)
-                    opt_save__plom_data_hasLabels.set(data_hasLabels)
-                    opt_save__plom_data_hasIndices.set(data_hasIndices)
-                    opt_save__plom_data_sheetName.set(data_sheetName)
-                    opt_save__plom_data_colIgnore.set(data_colIgnore)
-                    opt_save__plom_data_rowIgnore.set(data_rowIgnore)
-                    opt_save__plom_scaling_yesNo.set(scaling_yesNo)
-                    opt_save__plom_scaling_method.set(scaling_method)
-                    opt_save__plom_pca_yesNo.set(pca_yesNo)
-                    opt_save__plom_pca_method.set(pca_method)
-                    opt_save__plom_pca_criteria.set(pca_criteria)
-                    opt_save__plom_pca_scaleEvecs.set(pca_scaleEvecs)
-                    opt_save__plom_dmaps_yesNo.set(dmaps_yesNo)
-                    opt_save__plom_dmaps_epsilon.set(dmaps_epsilon)
-                    opt_save__plom_dmaps_kappa.set(dmaps_kappa)
-                    opt_save__plom_dmaps_L.set(dmaps_L)
-                    opt_save__plom_dmaps_firstEigvec.set(dmaps_firstEigvec)
-                    opt_save__plom_dmaps_dim.set(dmaps_dim)
-                    opt_save__plom_projection_yesNo.set(projection_yesNo)
-                    opt_save__plom_projection_source.set(projection_source)
-                    opt_save__plom_projection_target.set(projection_target)
-                    opt_save__plom_sampling_yesNo.set(sampling_yesNo)
-                    opt_save__plom_sampling_NSamples.set(sampling_NSamples)
-                    opt_save__plom_sampling_f0.set(sampling_f0)
-                    opt_save__plom_sampling_dr.set(sampling_dr)
-                    opt_save__plom_sampling_itoSteps.set(sampling_itoSteps)
-                    opt_save__plom_sampling_potMethod.set(sampling_potMethod)
-                    opt_save__plom_sampling_kdeBW.set(sampling_kdeBW)
-                    opt_save__plom_sampling_saveSamples.set(sampling_saveSamples)
-                    opt_save__plom_sampling_samplesFType.set(sampling_samplesFType)
-                    opt_save__plom_sampling_parallel.set(sampling_parallel)
-                    opt_save__plom_sampling_njobs.set(sampling_njobs)
-                    opt_save__plom_results_dict.set(results_dict)
-                    opt_save__plom_results_plots.set(results_plots)
+                    for line in f:
+                        # print(f"Reading session line: {line}")
+                        key, value = line.replace('\n', '').split(": ")
+                        inputs[key.strip()] = value
+                    
+                    opt_save__plom_data_path.set(inputs['data_path'])
+                    opt_save__plom_data_delimiter.set(inputs['data_delimiter'])
+                    opt_save__plom_data_sheetName.set(inputs['data_sheetName'])
+                    opt_save__plom_data_hasLabels.set(inputs['data_hasLabels'])
+                    opt_save__plom_data_rowRange.set(inputs['data_rowRange'])
+                    opt_save__plom_data_hasIndices.set(inputs['data_hasIndices'])
+                    opt_save__plom_data_columnRange.set(inputs['data_columnRange'])
+                    opt_save__plom_data_columnsAre.set(inputs['data_columnsAre'])
+                    opt_save__plom_data_rowIgnore.set(inputs['data_rowIgnore'])
+                    opt_save__plom_data_colIgnore.set(inputs['data_colIgnore'])
+                    
+                    opt_save__plom_scaling_yesNo.set(inputs['scaling_yesNo'])
+                    opt_save__plom_scaling_method.set(inputs['scaling_method'])
+                    
+                    opt_save__plom_pca_yesNo.set(inputs['pca_yesNo'])
+                    opt_save__plom_pca_method.set(inputs['pca_method'])
+                    opt_save__plom_pca_criteria.set(inputs['pca_criteria'])
+                    opt_save__plom_pca_scaleEvecs.set(inputs['pca_scaleEvecs'])
+                    
+                    opt_save__plom_dmaps_yesNo.set(inputs['dmaps_yesNo'])
+                    opt_save__plom_dmaps_epsilon.set(inputs['dmaps_epsilon'])
+                    opt_save__plom_dmaps_kappa.set(inputs['dmaps_kappa'])
+                    opt_save__plom_dmaps_L.set(inputs['dmaps_L'])
+                    opt_save__plom_dmaps_firstEigvec.set(inputs['dmaps_firstEigvec'])
+                    opt_save__plom_dmaps_dim.set(inputs['dmaps_dim'])
+                    
+                    opt_save__plom_projection_yesNo.set(inputs['projection_yesNo'])
+                    opt_save__plom_projection_source.set(inputs['projection_source'])
+                    opt_save__plom_projection_target.set(inputs['projection_target'])
+                    
+                    opt_save__plom_sampling_yesNo.set(inputs['sampling_yesNo'])
+                    opt_save__plom_sampling_NSamples.set(inputs['sampling_NSamples'])
+                    opt_save__plom_sampling_f0.set(inputs['sampling_f0'])
+                    opt_save__plom_sampling_dr.set(inputs['sampling_dr'])
+                    opt_save__plom_sampling_itoSteps.set(inputs['sampling_itoSteps'])
+                    opt_save__plom_sampling_potMethod.set(inputs['sampling_potMethod'])
+                    opt_save__plom_sampling_kdeBW.set(inputs['sampling_kdeBW'])
+                    opt_save__plom_sampling_saveSamples.set(inputs['sampling_saveSamples'])
+                    opt_save__plom_sampling_samplesFType.set(inputs['sampling_samplesFType'])
+                    opt_save__plom_sampling_parallel.set(inputs['sampling_parallel'])
+                    opt_save__plom_sampling_njobs.set(inputs['sampling_njobs'])
+                    
+                    opt_save__plom_results_dict.set(inputs['results_dict'])
+                    opt_save__plom_results_plots.set(inputs['results_plots'])
+                    
+                    opt_save__plom_job_name.set(inputs['job_name'])
+                    opt_save__plom_job_path.set(inputs['job_path'])
+                    
                 print(f'Session file loaded: "{file_path}"\n')
             except:
-                pass
+                print('Error loading session file\n')
     
     
     def load_training_data(
-            data_path, data_columnsAre='features', data_hasLabels=False, data_hasIndices=False, 
-            data_sheetName=None, data_colIgnore=[], data_rowIgnore=[]):
+        path, delimiter=None, sheetName=0, hasLabels=False, rowRange=None, 
+        hasIndices=None, columnRange=None, columnsAre='features', rowIgnore=[],
+        colIgnore=[]):
         
-        file_extension = data_path.split('.')[-1]
+        data = None
         
-        if data_hasLabels:
-            skiprows = 1
-            excel_header = 0
-        else:
-            skiprows = 0
-            excel_header = None
+        try:
+            file_extension = path.split('.')[-1]
+            
+            if file_extension in ["xls", "xlsx", "xlsm", "xlsb"]:
+                if sheetName == None or sheetName == "":
+                    sheetName = 0
+                rowStart = rowRange.split(":")[0]
+                rowEnd   = rowRange.split(":")[1]
+                skiprows = rowStart - 1
+                nrows = rowEnd - rowStart + 1
+                data = pd.read_excel(path, sheet_name=sheetName, skiprows=skiprows,
+                                     nrows=nrows, usecols=columnRange)
+            
+            elif file_extension == "npy":
+                data = np.load(path)
+            
+            else: # csv, txt, dat, or other
+                if file_extension == "csv":
+                    delimiter = ','
+                if type(delimiter) == str and 'Default' in delimiter:
+                    delimiter = None
+                skip_header = int(hasLabels) # ignore first line
+                data = np.genfromtxt(path, delimiter=delimiter, 
+                                     skip_header=skip_header)
+            
+            if len(colIgnore) > 0:
+                if type(colIgnore) == str:
+                    colIgnore = colIgnore.replace(' ', '').split(',')
+                colIgnore_ints = []
+                for el in colIgnore:
+                    if el.isdigit():
+                        colIgnore_ints.append(int(el))
+                    else:
+                        start, end = el.split(":")
+                        colIgnore_ints += list(range(int(start), int(end)+1))
+                data = np.delete(data, colIgnore_ints, axis=1)
+            
+            if len(rowIgnore) > 0:
+                if type(rowIgnore) == str:
+                    rowIgnore = rowIgnore.replace(' ', '').split(',')
+                rowIgnore_ints = []
+                for el in rowIgnore:
+                    if el.isdigit():
+                        rowIgnore_ints.append(int(el))
+                    else:
+                        start, end = el.split(":")
+                        rowIgnore_ints += list(range(int(start), int(end)+1))
+                data = np.delete(data, rowIgnore_ints, axis=0)
+            
+            if columnsAre.strip() == 'Samples':
+                data = data.T
+            
+            if hasIndices:
+                data = data[:, 1:]
         
-        if file_extension in ["xls", "xlsx", "xlsm", "xlsb"]:
-            data = pd.read_excel(data_path, sheet_name=data_sheetName, usecols='B:N', skiprows=skiprows)
-        
-        if file_extension == "txt":
-            data = np.loadtxt(data_path, skiprows=skiprows)
-        elif file_extension == "npy":
-            data = np.load(data_path)
-        elif file_extension == "csv":
-            data = np.genfromtxt(data_path, delimiter=',', skip_header=skiprows)
-
-        if len(data_colIgnore) > 0:
-            data_colIgnore = np.array([x for x in data_colIgnore.replace(' ', '').split(',') if x], dtype=int)
-            data = np.delete(data, data_colIgnore, axis=1)
-        
-        if len(data_rowIgnore) > 0:
-            data_rowIgnore = np.array([x for x in data_rowIgnore.replace(' ', '').split(',') if x], dtype=int)
-            data = np.delete(data, data_rowIgnore, axis=0)
-        
-        if data_columnsAre.strip() == 'Samples':
-            data = data.T
-        
-        if data_hasIndices:
-            data = data[:, 1:]
+        except:
+            pass
         
         return data
     
     
-    # def displayMessage__plom_statusMessage(message='', color='black'):  
-    #     plom_statusMessage['text'] = message  
-    #     plom_statusMessage['foreground'] = color 
-    
-    
     def make_input_deck(plom_gui_input):
         
-        plom_gui_input = ['True' if str(x).strip() == 'Yes' else x for x in plom_gui_input]
-        plom_gui_input = ['False' if str(x).strip() == 'No' else x for x in plom_gui_input]
+        inputs = plom_gui_input
         
-        [job_name, job_path, diagnostics_criteria, diagnostics_inputType, 
-         diagnostics_inputValue, data_path, data_columnsAre, data_hasLabels, 
-         data_hasIndices, data_sheetName, data_colIgnore, data_rowIgnore, scaling_yesNo, 
-         scaling_method, pca_yesNo, pca_method, pca_criteria, pca_scaleEvecs,
-         dmaps_yesNo, dmaps_epsilon, dmaps_kappa, dmaps_L, dmaps_firstEigvec, 
-         dmaps_dim, projection_yesNo, projection_source, projection_target, 
-         sampling_yesNo, sampling_NSamples, sampling_f0, sampling_dr, 
-         sampling_itoSteps, sampling_potMethod, sampling_kdeBW, 
-         sampling_saveSamples, sampling_samplesFType, sampling_parallel, 
-         sampling_njobs, results_dict, results_plots] = plom_gui_input
+        scaling_yesNo = "True" if inputs['scaling_yesNo'].strip() == "Yes" else "False"
+        scaling_method = inputs['scaling_method']
+        
+        pca_yesNo = "True" if inputs['pca_yesNo'].strip() == "Yes" else "False"
+        pca_method = inputs['pca_method']
+        pca_criteria = inputs['pca_criteria']
+        pca_scaleEvecs = "True" if inputs['pca_scaleEvecs'].strip() == "Yes" else "False"
+        
+        dmaps_yesNo = "True" if inputs['dmaps_yesNo'].strip() == "Yes" else "False"
+        dmaps_epsilon = inputs['dmaps_epsilon']
+        dmaps_kappa = inputs['dmaps_kappa']
+        dmaps_L = inputs['dmaps_L']
+        dmaps_firstEigvec = inputs['dmaps_firstEigvec']
+        dmaps_dim = inputs['dmaps_dim']
+        
+        projection_yesNo = "True" if inputs['projection_yesNo'].strip() == "Yes" else "False"
+        projection_source = inputs['projection_source']
+        projection_target = inputs['projection_target']
+        
+        sampling_yesNo = "True" if inputs['sampling_yesNo'].strip() == "Yes" else "False"
+        sampling_NSamples = inputs['sampling_NSamples']
+        sampling_f0 = inputs['sampling_f0']
+        sampling_dr = inputs['sampling_dr']
+        sampling_itoSteps = inputs['sampling_itoSteps']
+        sampling_potMethod = inputs['sampling_potMethod']
+        sampling_kdeBW = inputs['sampling_kdeBW']
+        sampling_saveSamples = "True" if inputs['sampling_saveSamples'].strip() == "Yes" else "False"
+        sampling_samplesFType = inputs['sampling_samplesFType']
+        sampling_parallel = "True" if  inputs['sampling_parallel'].strip() == "Yes" else "False"
+        sampling_njobs = inputs['sampling_njobs']
+        
+        
+        job_name = inputs['job_name']
+        job_path = inputs['job_path']
+
         
         if pca_method == "Cumulative Energy":
             pca_method = "cum_energy"
@@ -360,6 +419,9 @@ def launch_gui():
         elif pca_method == "PCA Dimension":
             pca_method = "pca_dim"
             pca_criteriaName = "pca_dim         "
+        
+        if dmaps_epsilon == "0":
+            dmaps_epsilon = "auto"
         
         if projection_source == "PCA space":
             projection_source = "pca"
@@ -372,6 +434,9 @@ def launch_gui():
             projection_target = "pca"
         elif projection_target == "DMAPs space":
             projection_target = "dmaps"
+        
+        if sampling_itoSteps == "0":
+            sampling_itoSteps = "auto"
         
         job_path_full = f'{job_path}/{job_name}'
         os.makedirs(job_path_full, exist_ok=True)
@@ -423,7 +488,7 @@ def launch_gui():
          f'parallel           {sampling_parallel}\n',
          f'n_jobs             {sampling_njobs}\n',
          f'save_samples       {sampling_saveSamples}\n',
-         f'samples_fname      output/samples # if None, file will be named using job_desc and save time\n',
+         'samples_fname      output/samples # if None, file will be named using job_desc and save time\n',
          f'samples_fmt        {sampling_samplesFType} # npy or txt\n',
          '\n',
          '\n',
@@ -450,30 +515,10 @@ def launch_gui():
     
     
     def create_job():
-        plom_gui_input = get_plom_gui_input()
+        inputs = get_plom_gui_input()
         
-        [job_name, job_path, diagnostics_criteria, diagnostics_inputType, 
-         diagnostics_inputValue, data_path, data_columnsAre, data_hasLabels, 
-         data_hasIndices, data_sheetName, data_colIgnore, data_rowIgnore, scaling_yesNo, 
-         scaling_method, pca_yesNo, pca_method, pca_criteria, pca_scaleEvecs,
-         dmaps_yesNo, dmaps_epsilon, dmaps_kappa, dmaps_L, dmaps_firstEigvec, 
-         dmaps_dim, projection_yesNo, projection_source, projection_target, 
-         sampling_yesNo, sampling_NSamples, sampling_f0, sampling_dr, 
-         sampling_itoSteps, sampling_potMethod, sampling_kdeBW, 
-         sampling_saveSamples, sampling_samplesFType, sampling_parallel, 
-         sampling_njobs, results_dict, results_plots] = plom_gui_input
-        
-        # if not job_name:
-        #     displayMessage__plom_statusMessage('Enter valid job name', 'red')
-        #     return
-        
-        # if not job_path:
-        #     displayMessage__plom_statusMessage('Enter valid job path', 'red')
-        #     return
-        
-        # if not data_path:
-        #     displayMessage__plom_statusMessage('Enter valid data path', 'red')
-        #     return
+        job_path = inputs['job_path']
+        job_name = inputs['job_name']
         
         job_path_full = f'{job_path}/{job_name}'
         os.makedirs(job_path_full, exist_ok=True)
@@ -482,35 +527,45 @@ def launch_gui():
         
         save_session(f"{job_path_full}/session.txt")
         
+        path = inputs['data_path']
+        delimiter = inputs['data_delimiter']
+        sheetName = inputs['data_sheetName']
+        hasLabels = inputs['data_hasLabels']
+        rowRange = inputs['data_rowRange']
+        hasIndices = inputs['data_hasIndices']
+        columnRange = inputs['data_columnRange']
+        columnsAre = inputs['data_columnsAre']
+        rowIgnore = inputs['data_rowIgnore']
+        colIgnore = inputs['data_colIgnore']
         
-        training_data = load_training_data(data_path, data_columnsAre, data_hasLabels, 
-                                      data_hasIndices, data_colIgnore, data_rowIgnore)
+        training_data = load_training_data(
+            path, delimiter, sheetName, hasLabels, rowRange, 
+            hasIndices, columnRange, columnsAre, rowIgnore, colIgnore)
+        
+        if training_data is None:
+            print("Failed to load training data. Job not created.")
+            return
+        
         np.savetxt("training.txt", training_data)
         print(f"Training data loaded: {training_data.shape[0]} samples, {training_data.shape[1]} features")
         print(f'Training data saved: "{job_path_full}/training.txt"\n')
         
-        make_input_deck(plom_gui_input)
+        make_input_deck(inputs)
         print("Input deck created")
         print(f'Input deck saved: "{job_path_full}/input.txt"\n')
-        
-        # displayMessage__plom_statusMessage('Job created successfully', 'blue')
+        print('Job created successfully\n')
     
     
     def run_job():
         create_job()
         
-        plom_gui_input = get_plom_gui_input()
+        inputs = get_plom_gui_input()
         
-        [job_name, job_path, diagnostics_criteria, diagnostics_inputType, 
-         diagnostics_inputValue, data_path, data_columnsAre, data_hasLabels, 
-         data_hasIndices, data_sheetName, data_colIgnore, data_rowIgnore, scaling_yesNo, 
-         scaling_method, pca_yesNo, pca_method, pca_criteria, pca_scaleEvecs,
-         dmaps_yesNo, dmaps_epsilon, dmaps_kappa, dmaps_L, dmaps_firstEigvec, 
-         dmaps_dim, projection_yesNo, projection_source, projection_target, 
-         sampling_yesNo, sampling_NSamples, sampling_f0, sampling_dr, 
-         sampling_itoSteps, sampling_potMethod, sampling_kdeBW, 
-         sampling_saveSamples, sampling_samplesFType, sampling_parallel, 
-         sampling_njobs, results_dict, results_plots] = plom_gui_input
+        job_path = inputs['job_path']
+        job_name = inputs['job_name']
+        
+        save_results_dict  = True if inputs['results_dict'].strip() == "Yes" else False
+        save_results_plots = True if inputs['results_plots'].strip() == "Yes" else False
         
         job_path_full = f'{job_path}/{job_name}'
         os.makedirs(job_path_full, exist_ok=True)
@@ -526,23 +581,30 @@ def launch_gui():
         try:
             args = parse_input(input_deck_fname)
         except:
-            set_info_msg('Unable to parse job input deck', 'red')
+            print('Unable to parse job input deck\n')
             return
         
         print("\n\n*** JOB STARTING ***\n\n")
         solution_dict = initialize(**args)
         run(solution_dict)
         
-        dict_path = f'{job_path_full}/output/result.dict'
-        save_dict(solution_dict, dict_path)
-        print(f'\n\nResults dictionary saved: "{dict_path}"\n')
+        if save_results_dict:
+            dict_path = f'{job_path_full}/output/result.dict'
+            save_dict(solution_dict, dict_path)
+            print(f'\n\nResults dictionary saved: "{dict_path}"\n')
         
-        set_info_msg('Job completed successfully', 'blue')
+        if save_results_plots:
+            plots_path = f'{job_path_full}/output/plots.pdf'
+            # make_analysis_plot(solution_dict, plots_path)
+            pass
+        
+        try:
+            os.replace(f'{job_name}_plom_summary.txt', 'output/summary.txt')
+        except:
+            summary_path = f'{job_path_full}/output/summary.txt'
+            save_summary(solution_dict, summary_path)
         
         print("\n\n*** JOB COMPLETED SUCCESSFULLY ***\n\n")
-        
-        os.replace(f'{job_name}_plom_summary.txt', 'output/summary.txt')
-    
     
     def run_job_thread():
         task_thread = threading.Thread(target=run_job)
@@ -583,17 +645,10 @@ def launch_gui():
     # Create the main window
     root = tk.Tk()
     root.title("PLoM GUI (USC-GM)")
-    root.geometry("1600x800")  # Set window size
+    root.geometry("1600x780")  # Set window size
     if os.path.isfile(ICON_PATH):
         root.iconbitmap(ICON_PATH)
     
-    # Create a style
-    # style = ttk.Style()
-    
-    # Configure the style for TCombobox
-    # style.configure('TCombobox', fieldbackground='orange', background='grey')
-    # style.theme_use('clam')
-    # style.map('custom.TCombobox', fieldbackground=[('readonly','light grey')])
     
     # Create a menu bar
     menu_bar = Menu(root)
@@ -606,12 +661,6 @@ def launch_gui():
     file_menu.add_separator()  # Add a separator line
     file_menu.add_command(label="Exit", command=on_close)
     menu_bar.add_cascade(label="File", menu=file_menu)
-    
-    # Add Edit menu
-    # edit_menu = Menu(menu_bar, tearoff=0)
-    # edit_menu.add_command(label="Undo")
-    # edit_menu.add_command(label="Redo")
-    # menu_bar.add_cascade(label="Edit", menu=edit_menu)
     
     # Add Help menu
     help_menu = Menu(menu_bar, tearoff=0)
@@ -717,7 +766,7 @@ def launch_gui():
         plom_settings_frame2.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_settings_frame2, info_msg__plom_settings_frame2))
         
         plom_log_frame = tk.Frame(data_augmentation_tab)
-        plom_log_frame.grid(row=0, column=2, rowspan=2, sticky='nsew', pady=(0, 10), padx=(0, 10))
+        plom_log_frame.grid(row=0, column=2, rowspan=2, sticky='nsew', pady=(0, 5), padx=(0, 5))
         name__plom_log_frame = "PLoM Log Frame"
         info_msg__plom_log_frame = ""
         plom_log_frame.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_log_frame, info_msg__plom_log_frame))
@@ -725,8 +774,6 @@ def launch_gui():
         plom_infoMessage = tk.Label(data_augmentation_tab, text='', foreground='black', justify='left')
         plom_infoMessage.grid(row=1, column = 0, columnspan=2, sticky = 'w', padx=10, pady=(10, 0))
         
-        # plom_statusMessage = tk.Label(data_augmentation_tab, text='', foreground='red')
-        # plom_statusMessage.grid(row=2, column = 0, columnspan=3, sticky = 'w', padx=10, pady=(0, 10))
         
         # Configure column weights for the frames
         data_augmentation_tab.grid_columnconfigure(0, weight=0, minsize=420)  # Fixed width column with minsize
@@ -1074,7 +1121,7 @@ def launch_gui():
         opt_value__plom_data_path = tk.Entry(frame__plom_data, textvariable=opt_save__plom_data_path)
         opt_value__plom_data_path.grid(row=group_row, column=1, sticky='ew')
         name__plom_data_path = "PLoM Training Data Path"
-        info_msg__plom_data_path = "Data path: Training data file path. Must be a valid file path of a raw data, csv, or Excel file."
+        info_msg__plom_data_path = "Data path: absolute path\n    Training data file path.\n    Must be a valid file path of a raw data, csv, or Excel file."
         opt_label__plom_data_path.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_path, info_msg__plom_data_path))
         opt_value__plom_data_path.bind("<Button-1>", lambda event: set_info_msg_on_widget_click(event, name__plom_data_path, info_msg__plom_data_path))
         
@@ -2589,7 +2636,7 @@ def launch_gui():
         
         # Add a text widget for the log with padding to control its start position
         plom_log_text = tk.Text(plom_log_frame, wrap='word', bg='white')
-        plom_log_text.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(0, 5))  # Add right padding
+        plom_log_text.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(0, 0))  # Add right padding
         
         original_stdout = sys.stdout
         sys.stdout = TextRedirector(plom_log_text)
@@ -2620,362 +2667,471 @@ def launch_gui():
             try:
                 job_dict = load_dict(file_path)
                 status_label.config(text="Results dictionary loaded successfully", fg="green")
-                print(job_dict.keys())
+                # print(job_dict.keys())
             except:
                 status_label.config(text="Cannot load results dictionary", fg="red")
         
         
-        def generate_plot(plot_type):
-            # Clear the existing plot (if any)
-            for widget in plot_area.winfo_children():
-                widget.destroy()
-        
-            # Generate random data for the plot (you can replace this with your actual data)
-            x = np.linspace(0, 10, 100)
-            if plot_type == "Plot 1":
-                y = np.sin(x)
-            elif plot_type == "Plot 2":
-                y = np.cos(x)
-            else:
-                y = np.tan(x)
-        
-            # Create a Matplotlib figure and plot
-            fig, ax = plt.subplots()
-            ax.plot(x, y)
-            ax.set_title(plot_type)
-        
-            # Embed the plot in the Tkinter GUI
-            canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
-            canvas.draw()  # Draw the plot onto the canvas
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-            
-            # Prevent matplotlib from opening a new window
-            # plt.close(fig)
-        
-        
         def plot2D_training(plom_dict, i=0, j=1, size=9, pt_size=10, 
                                           color='blue'):
+            global last_clicked_button
+            last_clicked_button.config(bg='SystemButtonFace')
+            last_clicked_button = plot1_button
+            last_clicked_button.config(bg='dark grey')
+            
             if plom_dict is None:
-                print("no dict")
+                status_label.config(text="Results dictionary not loaded", fg="red")
                 return
             
             for widget in plot_area.winfo_children():
                 widget.destroy()
+            
+            try:
+                training = plom_dict['data']['training'].T
                 
-            training = plom_dict['data']['training'].T
-            
-            fig, ax = plt.subplots(figsize=(size, size))
-            plt.scatter(training[i], training[j], s=pt_size, c=color)
-            plt.gca().set_aspect('equal')
-            plt.title(f'Training, n={training.shape[1]}')
-            
-            canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
-            canvas.draw()  # Draw the plot onto the canvas
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+                fig, ax = plt.subplots(figsize=(size, size))
+                plt.scatter(training[i], training[j], s=pt_size, c=color)
+                plt.gca().set_aspect('equal')
+                plt.title(f'Training, N={training.shape[1]}')
+                plt.xlabel(f"Var {i}")
+                plt.ylabel(f"Var {j}")
+                plt.grid(linestyle='--')
+                
+                canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
+                canvas.draw()  # Draw the plot onto the canvas
+                canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            except:
+                pass
         
         
         def plot2D_reconstructed_training(plom_dict, i=0, j=1, size=9, pt_size=10, 
-                                          color=['cmap','cmap']):
+                                          color=['blue','red']):
+            global last_clicked_button
+            last_clicked_button.config(bg='SystemButtonFace')
+            last_clicked_button = plot2_button
+            last_clicked_button.config(bg='dark grey')
+            
             if plom_dict is None:
-                print("no dict")
+                status_label.config(text="Results dictionary not loaded", fg="red")
                 return
             
             for widget in plot_area.winfo_children():
                 widget.destroy()
-                
-            training = plom_dict['data']['training'].T
-            reconst_training = plom_dict['data']['reconst_training'].T
-            [c1, c2] = color
-            if c1 == 'cmap': c1 = range(training.shape[1])
-            if c2 == 'cmap': c2 = range(training.shape[1])
-            # plt.figure(figsize=(size, size))
-            fig, ax = plt.subplots(figsize=(size, size))
-            t_plot = plt.scatter(training[i], training[j], s=pt_size, c=c1)
-            t_r_plot = plt.scatter(reconst_training[i], reconst_training[j], 
-                                   s=pt_size, c=c2)
-            plt.legend((t_plot, t_r_plot), ('Training', 'Reconstructed training'), 
-                       loc='best')
-            plt.gca().set_aspect('equal')
-            plt.title(f'Training vs reconstructed training, n={training.shape[1]}')
             
-            canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
-            canvas.draw()  # Draw the plot onto the canvas
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            try:
+                training = plom_dict['data']['training'].T
+                reconst_training = plom_dict['data']['reconst_training'].T
+                [c1, c2] = color
+                if c1 == 'cmap': c1 = range(training.shape[1])
+                if c2 == 'cmap': c2 = range(training.shape[1])
+                # plt.figure(figsize=(size, size))
+                fig, ax = plt.subplots(figsize=(size, size))
+                t_plot = plt.scatter(training[i], training[j], s=pt_size, c=c1)
+                t_r_plot = plt.scatter(reconst_training[i], reconst_training[j], 
+                                       s=pt_size, c=c2)
+                plt.legend((t_plot, t_r_plot), ('Training', 'Reconstructed training'), 
+                           loc='best')
+                plt.gca().set_aspect('equal')
+                plt.title(f'Training vs reconstructed training, N={training.shape[1]}')
+                plt.xlabel(f"Var {i}")
+                plt.ylabel(f"Var {j}")
+                plt.grid(linestyle='--')
+                
+                canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
+                canvas.draw()  # Draw the plot onto the canvas
+                canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            except:
+                pass
         
         
         def plot2d_samples(plom_dict, i=0, j=1, size=9, pt_size=10):
+            global last_clicked_button
+            last_clicked_button.config(bg='SystemButtonFace')
+            last_clicked_button = plot3_button
+            last_clicked_button.config(bg='dark grey')
+            
             if plom_dict is None:
-                print("no dict")
+                status_label.config(text="Results dictionary not loaded", fg="red")
                 return
             
             for widget in plot_area.winfo_children():
                 widget.destroy()
             
-            training = plom_dict['data']['training'].T
-            samples = plom_dict['data']['augmented'].T
-            N = training.shape[1]
-            num_sample = plom_dict['input']['ito_num_samples']
-            fig, ax = plt.subplots(figsize=(size, size))
-            plt.scatter(training[i], training[j], color='b', s=pt_size, 
-                        label='Training', marker="+")
-            for k in range(num_sample):
-                plt.scatter(samples[i, k*N:(k+1)*N], samples[j, k*N:(k+1)*N], 
-                            color=np.random.rand(3), s=pt_size)
-            plt.legend(loc='best')
-            plt.gca().set_aspect('equal')
-            plt.title('Training + New samples')
-            
-            canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
-            canvas.draw()  # Draw the plot onto the canvas
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            try:
+                training = plom_dict['data']['training'].T
+                samples = plom_dict['data']['augmented'].T
+                N = training.shape[1]
+                N_aug = samples.shape[1]
+                num_sample = plom_dict['input']['ito_num_samples']
+                fig, ax = plt.subplots(figsize=(size, size))
+                plt.scatter(training[i], training[j], color='b', s=pt_size, 
+                            label='Training', marker="+")
+                for k in range(num_sample):
+                    plt.scatter(samples[i, k*N:(k+1)*N], samples[j, k*N:(k+1)*N], 
+                                color=np.random.rand(3), s=pt_size)
+                plt.legend(loc='best')
+                plt.gca().set_aspect('equal')
+                plt.title(f'Training data ({N = }) + augmented data (N = {N_aug})')
+                plt.xlabel(f"Var {i}")
+                plt.ylabel(f"Var {j}")
+                plt.grid(linestyle='--')
+                
+                canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
+                canvas.draw()  # Draw the plot onto the canvas
+                canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            except:
+                pass
         
         
         def plot_dmaps_eigenvalues(plom_dict, n=0, size=8, pt_size=10, save=False):
+            global last_clicked_button
+            last_clicked_button.config(bg='SystemButtonFace')
+            last_clicked_button = plot4_button
+            last_clicked_button.config(bg='dark grey')
+            
             if plom_dict is None:
-                print("no dict")
+                status_label.config(text="Results dictionary not loaded", fg="red")
                 return
             
             for widget in plot_area.winfo_children():
                 widget.destroy()
             
-            evals = plom_dict['dmaps']['eigenvalues'][1:]
-            m = plom_dict['dmaps']['dimension']
-            if n == 0:
-                n = max(min(2*m, evals.size), 10)
-            elif n=='all':
-                n = evals.size
-            
-            fig, ax = plt.subplots(figsize=(size, size/2))
-            plt.plot(range(m), evals[:m], c='r')
-            plt.scatter(range(m), evals[:m], c='r', s=pt_size)
-            plt.plot(range(m-1, n), evals[m-1:n], c='b', alpha=0.25)
-            plt.scatter(range(m, n), evals[m:n], c='b', s=pt_size)
-            plt.yscale("log")
-            plt.title(f"DMAPS Eigenvalues (m={m})")
-            
-            canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
-            canvas.draw()  # Draw the plot onto the canvas
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            try:
+                evals = plom_dict['dmaps']['eigenvalues'][1:]
+                m = plom_dict['dmaps']['dimension']
+                if n == 0:
+                    n = max(min(2*m, evals.size), 10)
+                elif n=='all':
+                    n = evals.size
+                
+                fig, ax = plt.subplots(figsize=(size, size/2))
+                plt.plot(range(m), evals[:m], c='r')
+                plt.scatter(range(m), evals[:m], c='r', s=pt_size)
+                plt.plot(range(m-1, n), evals[m-1:n], c='b', alpha=0.25)
+                plt.scatter(range(m, n), evals[m:n], c='b', s=pt_size)
+                plt.yscale("log")
+                plt.title(f"DMAPS Eigenvalues (m={m})")
+                plt.xlabel("Eigenvalue index")
+                plt.ylabel("Eigenvalue")
+                plt.grid(linestyle='--')
+                
+                canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
+                canvas.draw()  # Draw the plot onto the canvas
+                canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            except:
+                pass
         
         
         def plot2D_dmaps_basis(plom_dict, vecs=[1,2], size=9, pt_size=10):
+            global last_clicked_button
+            last_clicked_button.config(bg='SystemButtonFace')
+            last_clicked_button = plot5_button
+            last_clicked_button.config(bg='dark grey')
+            
             if plom_dict is None:
-                print("no dict")
+                status_label.config(text="Results dictionary not loaded", fg="red")
                 return
             
             for widget in plot_area.winfo_children():
                 widget.destroy()
             
-            evecs = plom_dict['dmaps']['basis'][:, vecs].T
-            c = range(evecs.shape[1])
-    
-            fig, ax = plt.subplots(figsize=(size, size))
-            plt.scatter(evecs[0], evecs[1], s=pt_size, c=c)
-            plt.gca().set_aspect('equal')
-            plt.title(f'DMAPS basi vectors {vecs[0]} (x) vs {vecs[1]} (y)')
-            
-            canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
-            canvas.draw()  # Draw the plot onto the canvas
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            try:
+                evecs = plom_dict['dmaps']['basis'][:, vecs].T
+                c = range(evecs.shape[1])
+        
+                fig, ax = plt.subplots(figsize=(size, size))
+                plt.scatter(evecs[0], evecs[1], s=pt_size, c=c)
+                # plt.gca().set_aspect('equal')
+                plt.title(f'DMAPS basis vectors {vecs[0]} (x) vs {vecs[1]} (y)')
+                plt.xlabel(f"Eigenvector {vecs[0]}")
+                plt.ylabel(f"Eigenvector {vecs[1]}")
+                plt.grid(linestyle='--')
+                
+                canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
+                canvas.draw()  # Draw the plot onto the canvas
+                canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            except:
+                pass
         
         
         def plot_pca_eigenvalues(plom_dict, log=True, save=False):
+            global last_clicked_button
+            last_clicked_button.config(bg='SystemButtonFace')
+            last_clicked_button = plot6_button
+            last_clicked_button.config(bg='dark grey')
+            
             if plom_dict is None:
-                print("no dict")
+                status_label.config(text="Results dictionary not loaded", fg="red")
                 return
             
             for widget in plot_area.winfo_children():
                 widget.destroy()
             
-            evals = np.flip(plom_dict['pca']['eigvals'])
-            evals = evals[evals > 1e-15]
-            
-            fig, ax = plt.subplots(figsize=(12, 6))
-            if log:
-                plt.yscale('log')
-                plt.ylim(evals.min()*0.9, evals.max()*1.1)
-            plt.scatter(range(len(evals)), evals, s=7)
-            plt.title("PCA Eigenvalues")
-            plt.xticks(np.arange(0, len(evals), 5))
-            plt.xlabel("Eigenvalue Index")
-            plt.ylabel("Eigenvalue")
-            plt.grid()
-            
-            canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
-            canvas.draw()  # Draw the plot onto the canvas
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            try:
+                evals = np.flip(plom_dict['pca']['eigvals'])
+                evals = evals[evals > 1e-15]
+                
+                fig, ax = plt.subplots(figsize=(12, 6))
+                if log:
+                    plt.yscale('log')
+                    plt.ylim(evals.min()*0.9, evals.max()*1.1)
+                plt.scatter(range(len(evals)), evals, s=7)
+                plt.title("PCA Eigenvalues")
+                plt.xticks(np.arange(0, len(evals), 5))
+                plt.xlabel("Eigenvalue Index")
+                plt.ylabel("Eigenvalue")
+                plt.grid(linestyle='--')
+                
+                canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
+                canvas.draw()  # Draw the plot onto the canvas
+                canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            except:
+                pass
             
         
         def plot_training_pdf(plom_dict, i=0, size=9):
+            global last_clicked_button
+            last_clicked_button.config(bg='SystemButtonFace')
+            last_clicked_button = plot7_button
+            last_clicked_button.config(bg='dark grey')
+            
             if plom_dict is None:
-                print("no dict")
+                status_label.config(text="Results dictionary not loaded", fg="red")
                 return
             
             for widget in plot_area.winfo_children():
                 widget.destroy()
             
-            training  = plom_dict['data']['training'][:, i]
-            
-            xmin = min(0.8*min(training), 1.2*min(training))
-            xmax = max(0.8*max(training), 1.2*max(training))
-            
-            xx = np.linspace(xmin, xmax, 100)
-            
-            kde = gaussian_kde(training)
-            pdf_values = kde(xx)
-            
-            fig, ax = plt.subplots(figsize=(size, size/2))
-            plt.plot(xx, pdf_values)
-            plt.title("PDF (training)")
-            plt.xlabel(f"Feature {i}")
-            plt.ylabel("PDF")
-            plt.grid()
-            
-            canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
-            canvas.draw()  # Draw the plot onto the canvas
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            try:
+                training  = plom_dict['data']['training'][:, i]
+                
+                xrange = max(training) - min(training)
+                xmin = min(training) - 0.2*xrange
+                xmax = max(training) + 0.2*xrange
+                # xmin = min(0.8*min(training), 1.2*min(training))
+                # xmax = max(0.8*max(training), 1.2*max(training))
+                
+                xx = np.linspace(xmin, xmax, 100)
+                
+                kde = gaussian_kde(training)
+                pdf_values = kde(xx)
+                
+                fig, ax = plt.subplots(figsize=(size, size/2))
+                plt.plot(xx, pdf_values)
+                plt.title(f"PDF of Var {i} (training data)")
+                plt.xlabel(f"Var {i}")
+                plt.ylabel("PDF")
+                plt.grid(linestyle='--')
+                
+                canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
+                canvas.draw()  # Draw the plot onto the canvas
+                canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            except:
+                pass
         
         
         def plot_augmented_pdf(plom_dict, i=0, size=9):
+            global last_clicked_button
+            last_clicked_button.config(bg='SystemButtonFace')
+            last_clicked_button = plot8_button
+            last_clicked_button.config(bg='dark grey')
+            
             if plom_dict is None:
-                print("no dict")
+                status_label.config(text="Results dictionary not loaded", fg="red")
                 return
             
             for widget in plot_area.winfo_children():
                 widget.destroy()
             
-            augmented  = plom_dict['data']['augmented'][:, i]
-            
-            xmin = min(0.8*min(augmented), 1.2*min(augmented))
-            xmax = max(0.8*max(augmented), 1.2*max(augmented))
-            
-            xx = np.linspace(xmin, xmax, 100)
-            
-            kde = gaussian_kde(augmented)
-            pdf_values = kde(xx)
-            
-            fig, ax = plt.subplots(figsize=(size, size/2))
-            plt.plot(xx, pdf_values)
-            plt.title("PDF (augmented)")
-            plt.xlabel(f"Feature {i}")
-            plt.ylabel("PDF")
-            plt.grid()
-            
-            canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
-            canvas.draw()  # Draw the plot onto the canvas
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            try:
+                augmented  = plom_dict['data']['augmented'][:, i]
+                
+                xrange = max(augmented) - min(augmented)
+                xmin = min(augmented) - 0.2*xrange
+                xmax = max(augmented) + 0.2*xrange
+                # xmin = min(0.8*min(augmented), 1.2*min(augmented))
+                # xmax = max(0.8*max(augmented), 1.2*max(augmented))
+                
+                xx = np.linspace(xmin, xmax, 100)
+                
+                kde = gaussian_kde(augmented)
+                pdf_values = kde(xx)
+                
+                fig, ax = plt.subplots(figsize=(size, size/2))
+                plt.plot(xx, pdf_values)
+                plt.title(f"PDF of Var {i} (augmented data)")
+                plt.xlabel(f"Var {i}")
+                plt.ylabel("PDF")
+                plt.grid(linestyle='--')
+                
+                canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
+                canvas.draw()  # Draw the plot onto the canvas
+                canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            except:
+                pass
         
         
         def plot_train_vs_aug_pdf(plom_dict, i=0, size=9):
+            global last_clicked_button
+            last_clicked_button.config(bg='SystemButtonFace')
+            last_clicked_button = plot9_button
+            last_clicked_button.config(bg='dark grey')
+            
             if plom_dict is None:
-                print("no dict")
+                status_label.config(text="Results dictionary not loaded", fg="red")
                 return
             
             for widget in plot_area.winfo_children():
                 widget.destroy()
             
-            training  = plom_dict['data']['training'][:, i]
-            augmented  = plom_dict['data']['augmented'][:, i]
-            
-            xmin = min(0.8*min(training), 1.2*min(training), 0.8*min(augmented), 1.2*min(augmented))
-            xmax = max(0.8*max(training), 1.2*max(training), 0.8*max(augmented), 1.2*max(augmented))
-            
-            xx = np.linspace(xmin, xmax, 100)
-            
-            kde_train = gaussian_kde(training)
-            kde_aug = gaussian_kde(augmented)
-            pdf_values_train = kde_train(xx)
-            pdf_values_aug = kde_aug(xx)
-            
-            fig, ax = plt.subplots(figsize=(size, size/2))
-            plt.plot(xx, pdf_values_aug, label="Augmented")
-            plt.plot(xx, pdf_values_train, '--', color='black', alpha=0.5)
-            plt.title("PDF (training vs. augmented)")
-            plt.xlabel(f"Feature {i}")
-            plt.ylabel("PDF")
-            plt.legend()
-            plt.grid()
-            
-            canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
-            canvas.draw()  # Draw the plot onto the canvas
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            try:
+                training  = plom_dict['data']['training'][:, i]
+                augmented  = plom_dict['data']['augmented'][:, i]
+                
+                xrange = max(max(training) - min(training), max(augmented) - min(augmented))
+                xmin = min(min(training), min(augmented)) - 0.2*xrange
+                xmax = max(max(training), max(augmented)) + 0.2*xrange
+                # xmin = min(0.8*min(training), 1.2*min(training), 0.8*min(augmented), 1.2*min(augmented))
+                # xmax = max(0.8*max(training), 1.2*max(training), 0.8*max(augmented), 1.2*max(augmented))
+                
+                xx = np.linspace(xmin, xmax, 100)
+                
+                kde_train = gaussian_kde(training)
+                kde_aug = gaussian_kde(augmented)
+                pdf_values_train = kde_train(xx)
+                pdf_values_aug = kde_aug(xx)
+                
+                fig, ax = plt.subplots(figsize=(size, size/2))
+                plt.plot(xx, pdf_values_aug, label="Augmented")
+                plt.plot(xx, pdf_values_train, '--', color='black', alpha=0.5)
+                plt.title(f"PDF of Var {i} (training vs. augmented data)")
+                plt.xlabel(f"Var {i}")
+                plt.ylabel("PDF")
+                plt.legend()
+                plt.grid(linestyle='--')
+                
+                canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
+                canvas.draw()  # Draw the plot onto the canvas
+                canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            except:
+                pass
         
         
         def plot_training_jointPDF(plom_dict, i=0, j=1, size=9, surface=True):
+            global last_clicked_button
+            last_clicked_button.config(bg='SystemButtonFace')
+            last_clicked_button = plot10_button
+            last_clicked_button.config(bg='dark grey')
+            
             if plom_dict is None:
-                print("no dict")
+                status_label.config(text="Results dictionary not loaded", fg="red")
                 return
             
             for widget in plot_area.winfo_children():
                 widget.destroy()
             
-            training  = plom_dict['data']['training'][:, [i, j]]
-            
-            xmin = min(0.9*min(training[:, 0]), 1.1*min(training[:, 0]))
-            xmax = max(0.9*max(training[:, 0]), 1.1*max(training[:, 0]))
-            ymin = min(0.9*min(training[:, 1]), 1.1*min(training[:, 1]))
-            ymax = max(0.9*max(training[:, 1]), 1.1*max(training[:, 1]))
-            xx, yy = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
-            positions = np.vstack([xx.ravel(), yy.ravel()])
-            
-            kde = gaussian_kde(training.T)
-            pdf_values = kde(positions)
-            pdf_values = pdf_values.reshape(xx.shape)
-            
-            fig = plt.figure(figsize=(size, size))
-            fig, ax = plt.subplots(figsize=(size, size))
-            contour = ax.contourf(xx, yy, pdf_values, cmap='Blues')
-            plt.scatter(training[:, 0], training[:, 1], s=5, c='red', label='Sample Points')
-    
-            plt.xlabel(f'Feature {i}')
-            plt.ylabel(f'Feature {j}')
-            plt.gca().set_aspect('equal')
-            plt.title("Joint PDF (training)")
-            plt.colorbar(contour, label='Density')
-            plt.legend()
-            
-            canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
-            canvas.draw()  # Draw the plot onto the canvas
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            try:
+                training1 = plom_dict['data']['training'][:, i]
+                training2 = plom_dict['data']['training'][:, j]
+                xrange1 = max(training1) - min(training1)
+                xmin1 = min(training1) - 0.2*xrange1
+                xmax1 = max(training1) + 0.2*xrange1
+                xrange2 = max(training2) - min(training2)
+                xmin2 = min(training2) - 0.2*xrange2
+                xmax2 = max(training2) + 0.2*xrange2
+                
+                
+                
+                # xmin = min(0.9*min(training[:, 0]), 1.1*min(training[:, 0]))
+                # xmax = max(0.9*max(training[:, 0]), 1.1*max(training[:, 0]))
+                # ymin = min(0.9*min(training[:, 1]), 1.1*min(training[:, 1]))
+                # ymax = max(0.9*max(training[:, 1]), 1.1*max(training[:, 1]))
+                xx, yy = np.mgrid[xmin1:xmax1:100j, xmin2:xmax2:100j]
+                positions = np.vstack([xx.ravel(), yy.ravel()])
+                
+                training  = plom_dict['data']['training'][:, [i, j]]
+                
+                kde = gaussian_kde(training.T)
+                pdf_values = kde(positions)
+                pdf_values = pdf_values.reshape(xx.shape)
+                
+                fig = plt.figure(figsize=(size, size))
+                fig, ax = plt.subplots(figsize=(size, size))
+                contour = ax.contourf(xx, yy, pdf_values, cmap='Blues')
+                plt.scatter(training[:, 0], training[:, 1], s=5, c='red', label='Training samples')
+        
+                plt.xlabel(f'Var {i}')
+                plt.ylabel(f'Var {j}')
+                plt.gca().set_aspect('equal')
+                plt.title(f"Joint PDF of (Var {i}, Var {j}) (training data)")
+                plt.colorbar(contour, label='Density')
+                plt.legend()
+                
+                canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
+                canvas.draw()  # Draw the plot onto the canvas
+                canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            except:
+                pass
         
         
         def plot_augmented_jointPDF(plom_dict, i=0, j=1, size=9, surface=True):
+            global last_clicked_button
+            last_clicked_button.config(bg='SystemButtonFace')
+            last_clicked_button = plot11_button
+            last_clicked_button.config(bg='dark grey')
+            
             if plom_dict is None:
-                print("no dict")
+                status_label.config(text="Results dictionary not loaded", fg="red")
                 return
             
             for widget in plot_area.winfo_children():
                 widget.destroy()
             
-            training  = plom_dict['data']['training'][:, [i, j]]
-            augmented = plom_dict['data']['augmented'][:, [i, j]]
-            
-            xmin = min(0.9*min(augmented[:, 0]), 1.1*min(augmented[:, 0]), 0.9*min(training[:, 0]), 1.1*min(training[:, 0]))
-            xmax = max(0.9*max(augmented[:, 0]), 1.1*max(augmented[:, 0]), 0.9*max(training[:, 0]), 1.1*max(training[:, 0]))
-            ymin = min(0.9*min(augmented[:, 1]), 1.1*min(augmented[:, 1]), 0.9*min(training[:, 1]), 1.1*min(training[:, 1]))
-            ymax = max(0.9*max(augmented[:, 1]), 1.1*max(augmented[:, 1]), 0.9*max(training[:, 1]), 1.1*max(training[:, 1]))
-            xx, yy = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
-            positions = np.vstack([xx.ravel(), yy.ravel()])
-            
-            kde = gaussian_kde(augmented.T)
-            pdf_values = kde(positions)
-            pdf_values = pdf_values.reshape(xx.shape)
-            
-            fig, ax = plt.subplots(figsize=(size, size))
-            contour = ax.contourf(xx, yy, pdf_values, cmap='Blues')
-            plt.scatter(augmented[:, 0], augmented[:, 1], s=5, c='red', label='Augmented Sample Points')
-            plt.scatter(training[:, 0], training[:, 1], s=5, c='yellow', label='Training Sample Points')
-    
-            plt.xlabel(f'Feature {i}')
-            plt.ylabel(f'Feature {j}')
-            plt.gca().set_aspect('equal')
-            plt.title("Joint PDF (augmented)")
-            plt.colorbar(contour, label='Density')
-            plt.legend()
-            
-            canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
-            canvas.draw()  # Draw the plot onto the canvas
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            try:
+                training1 = plom_dict['data']['training'][:, i]
+                training2 = plom_dict['data']['training'][:, j]
+                augmented1 = plom_dict['data']['augmented'][:, i]
+                augmented2 = plom_dict['data']['augmented'][:, j]
+                xrange1 = max(max(training1) - min(training1), max(augmented1) - min(augmented1))
+                xmin1 = min(min(training1) - 0.2*xrange1, min(augmented1) - 0.2*xrange1)
+                xmax1 = max(max(training1) + 0.2*xrange1, max(augmented1) + 0.2*xrange1)
+                xrange2 = max(max(training2) - min(training2), max(augmented2) - min(augmented2))
+                xmin2 = min(min(training2) - 0.2*xrange2, min(augmented2) - 0.2*xrange2)
+                xmax2 = max(max(training2) + 0.2*xrange2, max(augmented2) + 0.2*xrange2)
+                            
+                # xmin = min(0.9*min(augmented[:, 0]), 1.1*min(augmented[:, 0]), 0.9*min(training[:, 0]), 1.1*min(training[:, 0]))
+                # xmax = max(0.9*max(augmented[:, 0]), 1.1*max(augmented[:, 0]), 0.9*max(training[:, 0]), 1.1*max(training[:, 0]))
+                # ymin = min(0.9*min(augmented[:, 1]), 1.1*min(augmented[:, 1]), 0.9*min(training[:, 1]), 1.1*min(training[:, 1]))
+                # ymax = max(0.9*max(augmented[:, 1]), 1.1*max(augmented[:, 1]), 0.9*max(training[:, 1]), 1.1*max(training[:, 1]))
+                
+                xx, yy = np.mgrid[xmin1:xmax1:100j, xmin2:xmax2:100j]
+                positions = np.vstack([xx.ravel(), yy.ravel()])
+          
+                training  = plom_dict['data']['training'][:, [i, j]]
+                augmented = plom_dict['data']['augmented'][:, [i, j]]
+                
+                kde = gaussian_kde(augmented.T)
+                pdf_values = kde(positions)
+                pdf_values = pdf_values.reshape(xx.shape)
+                
+                fig, ax = plt.subplots(figsize=(size, size))
+                contour = ax.contourf(xx, yy, pdf_values, cmap='Blues')
+                plt.scatter(training[:, 0], training[:, 1], s=5, c='red', label='Training samples')
+                plt.scatter(augmented[:, 0], augmented[:, 1], s=5, c='yellow', label='Augmented samples')
+                
+        
+                plt.xlabel(f'Var {i}')
+                plt.ylabel(f'Var {j}')
+                plt.gca().set_aspect('equal')
+                plt.title(f"Joint PDF of (Var {i}, Var {j}) (augmented data)")
+                plt.colorbar(contour, label='Density')
+                plt.legend()
+                
+                canvas = FigureCanvasTkAgg(fig, master=plot_area)  # Create canvas from the figure
+                canvas.draw()  # Draw the plot onto the canvas
+                canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            except:
+                pass
     
         
     
@@ -3068,12 +3224,12 @@ def launch_gui():
         plot4_button.grid(row=current_row, column=0, sticky="ew", pady=5)
         
         current_row += 1
-        plot5_button = tk.Button(plots_section, text="DMAPs Basis", command=lambda: plot2D_dmaps_basis(job_dict, int(plot5_var1_save.get()), int(plot5_var2_save.get())))
+        plot5_button = tk.Button(plots_section, text="DMAPs Basis", command=lambda: plot2D_dmaps_basis(job_dict, [int(plot5_var1_save.get()), int(plot5_var2_save.get())]))
         plot5_button.grid(row=current_row, column=0, sticky="ew", pady=5)
         plot5_var1_save = tk.StringVar(plots_section)
-        plot5_var1_save.set('0')
+        plot5_var1_save.set('1')
         plot5_var2_save = tk.StringVar(plots_section)
-        plot5_var2_save.set('1')
+        plot5_var2_save.set('2')
         plot5_var1 = tk.Entry(plots_section, width=4, textvariable=plot5_var1_save, justify='center')
         plot5_var1.grid(row=current_row, column=1, sticky="ew", pady=5, padx=(10, 5))
         plot5_label = tk.Label(plots_section, text="vs", anchor='w')
@@ -3136,6 +3292,12 @@ def launch_gui():
         plot11_label.grid(row=current_row, column=2, sticky='w', padx=(0, 0))
         plot11_var2 = tk.Entry(plots_section, width=4, textvariable=plot11_var2_save, justify='center')
         plot11_var2.grid(row=current_row, column=3, sticky="ew", pady=5, padx=5)
+        
+        
+        
+        # Keep track of last click button for background color update
+        global last_clicked_button
+        last_clicked_button = plot1_button
         
         # Make sure the plot area resizes with the window
         jobResults_tab.grid_rowconfigure(0, weight=1)
